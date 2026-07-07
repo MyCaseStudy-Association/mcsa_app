@@ -66,7 +66,14 @@ export const MaxContentWidth = 800;
 
 export const AppColors = {
   primaryTeal: '#0F766E',
+  primaryTealDark: '#0B5D57',
+  accentTeal: '#2DD4BF',
   lightTealBackground: '#DFF9F6',
   glassText: '#0B2F2C',
   glassMuted: '#35605B',
+  inputSurface: 'rgba(255, 255, 255, 0.72)',
+  inputBorder: 'rgba(13, 148, 136, 0.28)',
+  inputBorderFocused: '#0F766E',
+  cardBorder: 'rgba(13, 148, 136, 0.22)',
+  danger: '#D92D20',
 } as const;

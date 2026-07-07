@@ -13,9 +13,10 @@ export default function RootLayout() {
     <>
       <AnimatedSplashOverlay />
       <AuthProvider>
-        <Stack>
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="dashboard" options={{ headerShown: false }} />
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="register" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="dashboard" />
         </Stack>
       </AuthProvider>
       <StatusBar backgroundColor={AppColors.lightTealBackground} style="dark" />

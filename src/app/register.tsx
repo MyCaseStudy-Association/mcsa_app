@@ -1,6 +1,5 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AuthField } from '@/components/auth/auth-field';
 import { AuthLayout } from '@/components/auth/auth-layout';
@@ -9,17 +8,17 @@ import { AuthSwitchLink } from '@/components/auth/auth-switch-link';
 import { OrDivider } from '@/components/auth/or-divider';
 import { PrimaryButton } from '@/components/auth/primary-button';
 import { SocialButton } from '@/components/auth/social-button';
-import { ThemedText } from '@/components/themed-text';
-import { AppColors, Spacing } from '@/constants/theme';
 import { getSubmitErrorMessage } from '@/lib/auth-errors';
 import { useAuth } from '@/providers/auth-provider';
 
-const INITIAL_EMAIL = 'rahul@example.com';
-const INITIAL_PASSWORD = 'Password123!';
+const INITIAL_NAME = '';
+const INITIAL_EMAIL = '';
+const INITIAL_PASSWORD = '';
 
-export default function LoginScreen() {
+export default function RegisterScreen() {
   const router = useRouter();
-  const { apiBaseUrl, signIn, status } = useAuth();
+  const { apiBaseUrl, signUp, status } = useAuth();
+  const [name, setName] = useState(INITIAL_NAME);
   const [email, setEmail] = useState(INITIAL_EMAIL);
   const [password, setPassword] = useState(INITIAL_PASSWORD);
   const [error, setError] = useState('');
@@ -34,10 +33,21 @@ export default function LoginScreen() {
   const isBusy = isSubmitting || status === 'checking';
 
   async function handleSubmit() {
+    const trimmedName = name.trim();
     const trimmedEmail = email.trim().toLowerCase();
+
+    if (!trimmedName) {
+      setError('Name is required.');
+      return;
+    }
 
     if (!trimmedEmail || !password) {
       setError('Email and password are required.');
+      return;
+    }
+
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters.');
       return;
     }
 
@@ -45,7 +55,7 @@ export default function LoginScreen() {
     setIsSubmitting(true);
 
     try {
-      await signIn({ email: trimmedEmail, password });
+      await signUp({ name: trimmedName, email: trimmedEmail, password });
       router.replace('/dashboard');
     } catch (submitError) {
       setError(getSubmitErrorMessage(submitError, apiBaseUrl));
@@ -56,15 +66,28 @@ export default function LoginScreen() {
 
   return (
     <AuthLayout
-      title="Welcome back"
-      subtitle="Sign in to your MCSA account to open the dashboard."
+      title="Create account"
+      subtitle="Join MCSA to track members, cases, and approvals."
       footer={
         <AuthSwitchLink
-          prompt="Don't have an account?"
-          action="Create one"
-          onPress={() => router.push('/register')}
+          prompt="Already have an account?"
+          action="Sign in"
+          onPress={() => router.replace('/')}
         />
       }>
+      <AuthField
+        autoCapitalize="words"
+        autoComplete="name"
+        editable={!isBusy}
+        icon="person-outline"
+        label="Full name"
+        onChangeText={setName}
+        placeholder="Rahul Panchal"
+        returnKeyType="next"
+        textContentType="name"
+        value={name}
+      />
+
       <AuthField
         autoCapitalize="none"
         autoComplete="email"
@@ -79,38 +102,27 @@ export default function LoginScreen() {
         value={email}
       />
 
-      <View style={styles.passwordBlock}>
-        <AuthField
-          autoCapitalize="none"
-          autoComplete="current-password"
-          editable={!isBusy}
-          icon="lock-closed-outline"
-          label="Password"
-          onChangeText={setPassword}
-          onSubmitEditing={() => {
-            void handleSubmit();
-          }}
-          placeholder="Enter your password"
-          returnKeyType="done"
-          textContentType="password"
-          toggleSecure
-          value={password}
-        />
-        <Pressable
-          accessibilityRole="button"
-          hitSlop={8}
-          onPress={() => setError('Password recovery is not set up yet.')}
-          style={styles.forgot}>
-          <ThemedText type="smallBold" style={styles.forgotText}>
-            Forgot password?
-          </ThemedText>
-        </Pressable>
-      </View>
+      <AuthField
+        autoCapitalize="none"
+        autoComplete="new-password"
+        editable={!isBusy}
+        icon="lock-closed-outline"
+        label="Password"
+        onChangeText={setPassword}
+        onSubmitEditing={() => {
+          void handleSubmit();
+        }}
+        placeholder="At least 8 characters"
+        returnKeyType="done"
+        textContentType="newPassword"
+        toggleSecure
+        value={password}
+      />
 
       <AuthNotice message={error} />
 
       <PrimaryButton
-        label="Sign in"
+        label="Create account"
         loading={isSubmitting}
         disabled={isBusy}
         onPress={() => {
@@ -121,22 +133,10 @@ export default function LoginScreen() {
       <OrDivider />
 
       <SocialButton
-        label="Continue with Google"
+        label="Sign up with Google"
         disabled={isBusy}
         onPress={() => setError('Google sign-in is not configured yet.')}
       />
     </AuthLayout>
   );
 }
-
-const styles = StyleSheet.create({
-  passwordBlock: {
-    gap: Spacing.two,
-  },
-  forgot: {
-    alignSelf: 'flex-end',
-  },
-  forgotText: {
-    color: AppColors.primaryTeal,
-  },
-});
