@@ -1,11 +1,13 @@
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BrandMark } from '@/components/brand/brand-mark';
 import { GlassPanel } from '@/components/glass-panel';
 import { ThemedText } from '@/components/themed-text';
 import { AppColors, MaxContentWidth, Spacing } from '@/constants/theme';
+import { useAuth } from '@/providers/auth-provider';
 
 const stats = [
   { label: 'Members', value: '1,248' },
@@ -22,6 +24,31 @@ const activities = [
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { signOut, status, user } = useAuth();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.replace('/');
+    }
+  }, [router, status]);
+
+  async function handleLogout() {
+    setIsLoggingOut(true);
+    await signOut();
+    router.replace('/');
+    setIsLoggingOut(false);
+  }
+
+  if (status === 'checking' || status === 'unauthenticated') {
+    return (
+      <View style={styles.loadingScreen}>
+        <ActivityIndicator color={AppColors.primaryTeal} />
+      </View>
+    );
+  }
+
+  const displayName = user?.name ?? user?.email ?? 'your account';
 
   return (
     <ScrollView
@@ -43,22 +70,30 @@ export default function DashboardScreen() {
                 Dashboard
               </ThemedText>
               <ThemedText type="small" style={styles.subtitle}>
-                MCSA overview for the demo account.
+                MCSA overview for {displayName}.
               </ThemedText>
             </View>
           </View>
 
           <Pressable
             accessibilityRole="button"
-            onPress={() => router.replace('/')}
+            disabled={isLoggingOut}
+            onPress={() => {
+              void handleLogout();
+            }}
             style={({ pressed }) => [
               styles.logoutButton,
               { borderColor: 'rgba(13, 148, 136, 0.32)' },
-              pressed && styles.buttonPressed,
+              isLoggingOut && styles.buttonDisabled,
+              pressed && !isLoggingOut && styles.buttonPressed,
             ]}>
-            <ThemedText type="smallBold" style={styles.label}>
-              Logout
-            </ThemedText>
+            {isLoggingOut ? (
+              <ActivityIndicator color={AppColors.primaryTeal} />
+            ) : (
+              <ThemedText type="smallBold" style={styles.label}>
+                Logout
+              </ThemedText>
+            )}
           </Pressable>
         </View>
 
@@ -96,6 +131,12 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
+  loadingScreen: {
+    alignItems: 'center',
+    backgroundColor: AppColors.lightTealBackground,
+    flex: 1,
+    justifyContent: 'center',
+  },
   screen: {
     backgroundColor: AppColors.lightTealBackground,
     flex: 1,
@@ -156,6 +197,9 @@ const styles = StyleSheet.create({
   },
   buttonPressed: {
     opacity: 0.72,
+  },
+  buttonDisabled: {
+    opacity: 0.58,
   },
   statsGrid: {
     flexDirection: 'row',

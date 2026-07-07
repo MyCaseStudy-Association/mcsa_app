@@ -1,7 +1,7 @@
-import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -15,31 +15,71 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BrandMark } from '@/components/brand/brand-mark';
 import { GlassPanel } from '@/components/glass-panel';
 import { ThemedText } from '@/components/themed-text';
-import { AppAssets } from '@/constants/assets';
 import { AppColors, MaxContentWidth, Spacing } from '@/constants/theme';
+import { AuthApiError } from '@/lib/auth-api';
+import { useAuth } from '@/providers/auth-provider';
 
-const DEMO_EMAIL = 'admin@mcsa.test';
-const DEMO_PASSWORD = 'password123';
+const INITIAL_NAME = 'Rahul Panchal';
+const INITIAL_EMAIL = 'rahul@example.com';
+const INITIAL_PASSWORD = 'Password123!';
+
+type AuthMode = 'login' | 'register';
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const [email, setEmail] = useState(DEMO_EMAIL);
-  const [password, setPassword] = useState(DEMO_PASSWORD);
+  const { apiBaseUrl, signIn, signUp, status } = useAuth();
+  const [mode, setMode] = useState<AuthMode>('login');
+  const [name, setName] = useState(INITIAL_NAME);
+  const [email, setEmail] = useState(INITIAL_EMAIL);
+  const [password, setPassword] = useState(INITIAL_PASSWORD);
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function openDashboard() {
-    setError('');
-    router.replace('/dashboard');
-  }
+  useEffect(() => {
+    if (status === 'authenticated') {
+      router.replace('/dashboard');
+    }
+  }, [router, status]);
 
-  function handleLogin() {
-    if (email.trim().toLowerCase() === DEMO_EMAIL && password === DEMO_PASSWORD) {
-      openDashboard();
+  const isBusy = isSubmitting || status === 'checking';
+  const submitLabel = mode === 'login' ? 'Login' : 'Register';
+
+  async function handleSubmit() {
+    const trimmedName = name.trim();
+    const trimmedEmail = email.trim().toLowerCase();
+
+    if (!trimmedEmail || !password) {
+      setError('Email and password are required.');
       return;
     }
 
-    setError('Use the demo email and password shown below.');
+    if (mode === 'register' && !trimmedName) {
+      setError('Name is required.');
+      return;
+    }
+
+    setError('');
+    setIsSubmitting(true);
+
+    try {
+      if (mode === 'register') {
+        await signUp({ name: trimmedName, email: trimmedEmail, password });
+      } else {
+        await signIn({ email: trimmedEmail, password });
+      }
+
+      router.replace('/dashboard');
+    } catch (submitError) {
+      setError(getSubmitErrorMessage(submitError, apiBaseUrl));
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  function selectMode(nextMode: AuthMode) {
+    setMode(nextMode);
+    setError('');
   }
 
   return (
@@ -66,12 +106,65 @@ export default function LoginScreen() {
                   MCSA Login
                 </ThemedText>
                 <ThemedText type="small" style={styles.subtitle}>
-                  Sign in with the demo credentials to open the dashboard.
+                  Sign in or create an account to open the dashboard.
                 </ThemedText>
               </View>
             </View>
 
+            <View style={styles.modeSwitch}>
+              <Pressable
+                accessibilityRole="button"
+                disabled={isBusy}
+                onPress={() => selectMode('login')}
+                style={({ pressed }) => [
+                  styles.modeButton,
+                  mode === 'login' && styles.modeButtonActive,
+                  pressed && styles.buttonPressed,
+                ]}>
+                <ThemedText
+                  type="smallBold"
+                  style={[styles.modeText, mode === 'login' && styles.modeTextActive]}>
+                  Login
+                </ThemedText>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                disabled={isBusy}
+                onPress={() => selectMode('register')}
+                style={({ pressed }) => [
+                  styles.modeButton,
+                  mode === 'register' && styles.modeButtonActive,
+                  pressed && styles.buttonPressed,
+                ]}>
+                <ThemedText
+                  type="smallBold"
+                  style={[styles.modeText, mode === 'register' && styles.modeTextActive]}>
+                  Register
+                </ThemedText>
+              </Pressable>
+            </View>
+
             <View style={styles.formFields}>
+              {mode === 'register' ? (
+                <View style={styles.field}>
+                  <ThemedText type="smallBold" style={styles.label}>
+                    Name
+                  </ThemedText>
+                  <TextInput
+                    autoCapitalize="words"
+                    autoComplete="name"
+                    editable={!isBusy}
+                    onChangeText={setName}
+                    placeholder={INITIAL_NAME}
+                    placeholderTextColor={AppColors.glassMuted}
+                    returnKeyType="next"
+                    style={styles.input}
+                    textContentType="name"
+                    value={name}
+                  />
+                </View>
+              ) : null}
+
               <View style={styles.field}>
                 <ThemedText type="smallBold" style={styles.label}>
                   Email
@@ -79,18 +172,14 @@ export default function LoginScreen() {
                 <TextInput
                   autoCapitalize="none"
                   autoComplete="email"
+                  editable={!isBusy}
                   inputMode="email"
                   onChangeText={setEmail}
-                  placeholder={DEMO_EMAIL}
+                  placeholder={INITIAL_EMAIL}
                   placeholderTextColor={AppColors.glassMuted}
-                  style={[
-                    styles.input,
-                    {
-                      backgroundColor: 'rgba(255, 255, 255, 0.72)',
-                      borderColor: 'rgba(13, 148, 136, 0.28)',
-                      color: AppColors.glassText,
-                    },
-                  ]}
+                  returnKeyType="next"
+                  style={styles.input}
+                  textContentType="emailAddress"
                   value={email}
                 />
               </View>
@@ -101,18 +190,18 @@ export default function LoginScreen() {
                 </ThemedText>
                 <TextInput
                   autoCapitalize="none"
+                  autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                  editable={!isBusy}
                   onChangeText={setPassword}
-                  placeholder={DEMO_PASSWORD}
+                  onSubmitEditing={() => {
+                    void handleSubmit();
+                  }}
+                  placeholder={INITIAL_PASSWORD}
                   placeholderTextColor={AppColors.glassMuted}
+                  returnKeyType="done"
                   secureTextEntry
-                  style={[
-                    styles.input,
-                    {
-                      backgroundColor: 'rgba(255, 255, 255, 0.72)',
-                      borderColor: 'rgba(13, 148, 136, 0.28)',
-                      color: AppColors.glassText,
-                    },
-                  ]}
+                  style={styles.input}
+                  textContentType={mode === 'login' ? 'password' : 'newPassword'}
                   value={password}
                 />
               </View>
@@ -126,49 +215,40 @@ export default function LoginScreen() {
 
             <Pressable
               accessibilityRole="button"
-              onPress={handleLogin}
-              style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}>
-              <ThemedText type="smallBold" style={styles.buttonText}>
-                Login
-              </ThemedText>
-            </Pressable>
-
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Continue with Google"
-              onPress={openDashboard}
+              disabled={isBusy}
+              onPress={() => {
+                void handleSubmit();
+              }}
               style={({ pressed }) => [
-                styles.googleButton,
-                { borderColor: 'rgba(13, 148, 136, 0.32)' },
-                pressed && styles.buttonPressed,
+                styles.button,
+                isBusy && styles.buttonDisabled,
+                pressed && !isBusy && styles.buttonPressed,
               ]}>
-              <Image
-                accessibilityIgnoresInvertColors
-                contentFit="contain"
-                source={AppAssets.googleG}
-                style={styles.googleIcon}
-              />
-              <ThemedText type="smallBold" style={styles.label}>
-                Continue with Google
-              </ThemedText>
+              {isSubmitting ? (
+                <ActivityIndicator color="#ffffff" />
+              ) : (
+                <ThemedText type="smallBold" style={styles.buttonText}>
+                  {submitLabel}
+                </ThemedText>
+              )}
             </Pressable>
-
-            <View style={[styles.credentials, { borderTopColor: 'rgba(13, 148, 136, 0.20)' }]}>
-              <ThemedText type="smallBold" style={styles.label}>
-                Demo credentials
-              </ThemedText>
-              <ThemedText selectable type="code" style={styles.mutedCode}>
-                {DEMO_EMAIL}
-              </ThemedText>
-              <ThemedText selectable type="code" style={styles.mutedCode}>
-                {DEMO_PASSWORD}
-              </ThemedText>
-            </View>
           </GlassPanel>
         </View>
       </KeyboardAvoidingView>
     </ScrollView>
   );
+}
+
+function getSubmitErrorMessage(error: unknown, apiBaseUrl: string) {
+  if (error instanceof AuthApiError) {
+    return error.message;
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return `Unable to reach the auth server at ${apiBaseUrl}.`;
 }
 
 const styles = StyleSheet.create({
@@ -215,11 +295,32 @@ const styles = StyleSheet.create({
     color: AppColors.glassMuted,
     maxWidth: 420,
   },
-  label: {
+  modeSwitch: {
+    backgroundColor: 'rgba(255, 255, 255, 0.46)',
+    borderColor: 'rgba(13, 148, 136, 0.22)',
+    borderRadius: Spacing.two,
+    borderWidth: 1,
+    flexDirection: 'row',
+    padding: Spacing.one,
+  },
+  modeButton: {
+    alignItems: 'center',
+    borderRadius: Spacing.two - 2,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 42,
+  },
+  modeButtonActive: {
+    backgroundColor: AppColors.primaryTeal,
+  },
+  modeText: {
     color: AppColors.glassText,
   },
-  mutedCode: {
-    color: AppColors.glassMuted,
+  modeTextActive: {
+    color: '#ffffff',
+  },
+  label: {
+    color: AppColors.glassText,
   },
   formFields: {
     gap: Spacing.three,
@@ -228,8 +329,11 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   input: {
+    backgroundColor: 'rgba(255, 255, 255, 0.72)',
+    borderColor: 'rgba(13, 148, 136, 0.28)',
     borderRadius: Spacing.two,
     borderWidth: 1,
+    color: AppColors.glassText,
     fontSize: 16,
     minHeight: 50,
     paddingHorizontal: Spacing.three,
@@ -241,30 +345,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 50,
   },
+  buttonDisabled: {
+    opacity: 0.58,
+  },
   buttonPressed: {
     opacity: 0.82,
   },
   buttonText: {
     color: '#ffffff',
-  },
-  googleButton: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.58)',
-    borderRadius: Spacing.two,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: Spacing.two,
-    justifyContent: 'center',
-    minHeight: 50,
-  },
-  googleIcon: {
-    height: 24,
-    width: 24,
-  },
-  credentials: {
-    borderTopWidth: 1,
-    gap: Spacing.one,
-    paddingTop: Spacing.three,
   },
   errorText: {
     color: '#D92D20',
