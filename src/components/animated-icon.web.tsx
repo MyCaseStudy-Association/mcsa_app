@@ -2,7 +2,9 @@ import { Image } from 'expo-image';
 import { StyleSheet, View } from 'react-native';
 import Animated, { Keyframe, Easing } from 'react-native-reanimated';
 
-import classes from './animated-icon.module.css';
+import { AppAssets } from '@/constants/assets';
+import { AppColors } from '@/constants/theme';
+
 const DURATION = 300;
 
 export function AnimatedSplashOverlay() {
@@ -58,15 +60,13 @@ export function AnimatedIcon() {
   return (
     <View style={styles.iconContainer}>
       <Animated.View entering={glowKeyframe.duration(60 * 1000 * 4)} style={styles.glow}>
-        <Image style={styles.glow} source={require('@/assets/images/logo-glow.png')} />
+        <View style={styles.glowSurface} />
       </Animated.View>
 
-      <Animated.View style={styles.background} entering={keyframe.duration(DURATION)}>
-        <div className={classes.expoLogoBackground} />
-      </Animated.View>
+      <Animated.View style={styles.background} entering={keyframe.duration(DURATION)} />
 
       <Animated.View style={styles.imageContainer} entering={logoKeyframe.duration(DURATION)}>
-        <Image style={styles.image} source={require('@/assets/images/expo-logo.png')} />
+        <Image contentFit="contain" style={styles.image} source={AppAssets.mcsaMark} />
       </Animated.View>
     </View>
   );
@@ -89,6 +89,12 @@ const styles = StyleSheet.create({
     height: 201,
     position: 'absolute',
   },
+  glowSurface: {
+    backgroundColor: 'rgba(94, 234, 212, 0.22)',
+    borderRadius: 100,
+    height: 201,
+    width: 201,
+  },
   iconContainer: {
     justifyContent: 'center',
     alignItems: 'center',
@@ -98,9 +104,11 @@ const styles = StyleSheet.create({
   image: {
     position: 'absolute',
     width: 76,
-    height: 71,
+    height: 76,
   },
   background: {
+    backgroundColor: AppColors.lightTealBackground,
+    borderRadius: 40,
     width: 128,
     height: 128,
     position: 'absolute',
