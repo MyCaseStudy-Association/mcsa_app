@@ -56,6 +56,7 @@ export default function LoginScreen() {
 
   return (
     <AuthLayout
+      eyebrow="Sign in"
       title="Welcome back"
       subtitle="Sign in to your MCSA account to open the dashboard."
       footer={
@@ -111,6 +112,7 @@ export default function LoginScreen() {
 
       <PrimaryButton
         label="Sign in"
+        icon="arrow-forward"
         loading={isSubmitting}
         disabled={isBusy}
         onPress={() => {

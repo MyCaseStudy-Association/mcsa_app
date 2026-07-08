@@ -1,110 +1,80 @@
+import { StatusBar } from 'expo-status-bar';
 import { PropsWithChildren, ReactNode } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
+  Text,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AuthDecor } from '@/components/auth/auth-decor';
 import { BrandMark } from '@/components/brand/brand-mark';
-import { GlassPanel } from '@/components/glass-panel';
 import { ThemedText } from '@/components/themed-text';
 import { AppColors, Spacing } from '@/constants/theme';
 
 type AuthLayoutProps = PropsWithChildren<{
+  eyebrow: string;
   title: string;
-  subtitle: string;
+  subtitle: ReactNode;
   footer?: ReactNode;
 }>;
 
-const CARD_MAX_WIDTH = 440;
+const COLUMN_MAX_WIDTH = 460;
 
-export function AuthLayout({ title, subtitle, footer, children }: AuthLayoutProps) {
+export function AuthLayout({ eyebrow, title, subtitle, footer, children }: AuthLayoutProps) {
   const insets = useSafeAreaInsets();
 
   return (
     <View style={styles.screen}>
-      <View pointerEvents="none" style={styles.decor}>
-        <View style={[styles.blob, styles.blobOne]} />
-        <View style={[styles.blob, styles.blobTwo]} />
-        <View style={[styles.blob, styles.blobThree]} />
-      </View>
-
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-        style={styles.scroll}
-        contentContainerStyle={[
-          styles.scrollContent,
-          {
-            paddingTop: insets.top + Spacing.five,
-            paddingBottom: insets.bottom + Spacing.five,
-          },
-        ]}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.keyboard}>
-          <View style={styles.container}>
-            <View style={styles.brandHeader}>
-              <View style={styles.brandBadge}>
-                <BrandMark size={46} />
+      <StatusBar style="dark" />
+      <AuthDecor />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.flex}>
+        <ScrollView
+          bounces={false}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.scrollContent,
+            {
+              paddingTop: insets.top + Spacing.five,
+              paddingBottom: insets.bottom + Spacing.four,
+            },
+          ]}>
+          <View style={styles.column}>
+            <View style={styles.header}>
+              <View style={styles.brandRow}>
+                <BrandMark size={30} />
+                <Text style={styles.wordmark}>MCSA</Text>
               </View>
-              <ThemedText type="title" style={styles.title}>
-                {title}
-              </ThemedText>
+              <Text style={styles.eyebrow}>{eyebrow}</Text>
+              <Text style={styles.title}>{title}</Text>
               <ThemedText type="small" style={styles.subtitle}>
                 {subtitle}
               </ThemedText>
             </View>
 
-            <GlassPanel style={styles.card}>{children}</GlassPanel>
-
-            {footer ? <View style={styles.footer}>{footer}</View> : null}
+            <View style={styles.card}>
+              <View style={styles.form}>{children}</View>
+              {footer ? <View style={styles.footer}>{footer}</View> : null}
+            </View>
           </View>
-        </KeyboardAvoidingView>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: {
-    backgroundColor: AppColors.lightTealBackground,
+    backgroundColor: AppColors.authBg,
     flex: 1,
   },
-  decor: {
-    ...StyleSheet.absoluteFillObject,
-    overflow: 'hidden',
-  },
-  blob: {
-    borderRadius: 9999,
-    position: 'absolute',
-  },
-  blobOne: {
-    backgroundColor: 'rgba(45, 212, 191, 0.35)',
-    height: 320,
-    right: -110,
-    top: -120,
-    width: 320,
-  },
-  blobTwo: {
-    backgroundColor: 'rgba(15, 118, 110, 0.20)',
-    bottom: -140,
-    height: 300,
-    left: -110,
-    width: 300,
-  },
-  blobThree: {
-    backgroundColor: 'rgba(255, 255, 255, 0.55)',
-    height: 180,
-    left: 40,
-    top: 90,
-    width: 180,
-  },
-  scroll: {
+  flex: {
     flex: 1,
   },
   scrollContent: {
@@ -112,49 +82,61 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: Spacing.three,
   },
-  keyboard: {
-    width: '100%',
-  },
-  container: {
+  column: {
     alignSelf: 'center',
     gap: Spacing.four,
-    maxWidth: CARD_MAX_WIDTH,
+    maxWidth: COLUMN_MAX_WIDTH,
     width: '100%',
   },
-  brandHeader: {
-    alignItems: 'center',
+  header: {
     gap: Spacing.two,
+    paddingHorizontal: Spacing.one,
   },
-  brandBadge: {
+  brandRow: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.72)',
-    borderColor: AppColors.cardBorder,
-    borderCurve: 'continuous',
-    borderRadius: 22,
-    borderWidth: 1,
-    height: 76,
-    justifyContent: 'center',
-    marginBottom: Spacing.one,
-    shadowColor: AppColors.primaryTealDark,
-    shadowOffset: { height: 8, width: 0 },
-    shadowOpacity: 0.18,
-    shadowRadius: 18,
-    width: 76,
+    flexDirection: 'row',
+    gap: Spacing.two,
+    marginBottom: Spacing.two,
+  },
+  wordmark: {
+    color: AppColors.glassText,
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: 3,
+  },
+  eyebrow: {
+    color: AppColors.primaryTeal,
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
   },
   title: {
     color: AppColors.glassText,
-    fontSize: 34,
-    lineHeight: 40,
-    textAlign: 'center',
+    fontSize: 38,
+    fontWeight: '700',
+    letterSpacing: -0.5,
+    lineHeight: 42,
   },
   subtitle: {
     color: AppColors.glassMuted,
     maxWidth: 360,
-    textAlign: 'center',
   },
   card: {
+    backgroundColor: '#ffffff',
+    borderColor: 'rgba(15, 118, 110, 0.10)',
+    borderCurve: 'continuous',
+    borderRadius: 28,
+    borderWidth: 1,
     gap: Spacing.four,
     padding: Spacing.four,
+    shadowColor: AppColors.primaryTealDark,
+    shadowOffset: { height: 12, width: 0 },
+    shadowOpacity: 0.1,
+    shadowRadius: 24,
+  },
+  form: {
+    gap: Spacing.three,
   },
   footer: {
     alignItems: 'center',

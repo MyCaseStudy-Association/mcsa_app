@@ -1,8 +1,7 @@
-import { Image } from 'expo-image';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { GoogleIcon } from '@/components/auth/google-icon';
 import { ThemedText } from '@/components/themed-text';
-import { AppAssets } from '@/constants/assets';
 import { AppColors, Spacing } from '@/constants/theme';
 
 type SocialButtonProps = {
@@ -23,12 +22,7 @@ export function SocialButton({ label, disabled = false, onPress }: SocialButtonP
         disabled && styles.disabled,
         pressed && !disabled && styles.pressed,
       ]}>
-      <Image
-        accessibilityIgnoresInvertColors
-        contentFit="contain"
-        source={AppAssets.googleG}
-        style={styles.icon}
-      />
+      <GoogleIcon size={20} />
       <ThemedText type="smallBold" style={styles.label}>
         {label}
       </ThemedText>
@@ -40,14 +34,14 @@ export function SocialButton({ label, disabled = false, onPress }: SocialButtonP
 const styles = StyleSheet.create({
   button: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.82)',
-    borderColor: AppColors.inputBorder,
+    backgroundColor: '#ffffff',
+    borderColor: AppColors.fieldBorder,
     borderCurve: 'continuous',
-    borderRadius: Spacing.two + 4,
-    borderWidth: 1,
+    borderRadius: 14,
+    borderWidth: 1.5,
     flexDirection: 'row',
     justifyContent: 'center',
-    minHeight: 52,
+    minHeight: 54,
     paddingHorizontal: Spacing.three,
   },
   disabled: {
@@ -55,10 +49,6 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.86,
-  },
-  icon: {
-    height: 20,
-    width: 20,
   },
   label: {
     color: AppColors.glassText,

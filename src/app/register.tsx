@@ -2,12 +2,15 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 
 import { AuthField } from '@/components/auth/auth-field';
+import { AuthInfo } from '@/components/auth/auth-info';
 import { AuthLayout } from '@/components/auth/auth-layout';
 import { AuthNotice } from '@/components/auth/auth-notice';
 import { AuthSwitchLink } from '@/components/auth/auth-switch-link';
 import { OrDivider } from '@/components/auth/or-divider';
 import { PrimaryButton } from '@/components/auth/primary-button';
 import { SocialButton } from '@/components/auth/social-button';
+import { ThemedText } from '@/components/themed-text';
+import { AppColors } from '@/constants/theme';
 import { getSubmitErrorMessage } from '@/lib/auth-errors';
 import { useAuth } from '@/providers/auth-provider';
 
@@ -66,8 +69,17 @@ export default function RegisterScreen() {
 
   return (
     <AuthLayout
-      title="Create account"
-      subtitle="Join MCSA to track members, cases, and approvals."
+      eyebrow="Get started"
+      title="Create your account"
+      subtitle={
+        <>
+          Join MCSA and unlock the power of data{' '}
+          <ThemedText type="smallBold" style={{ color: AppColors.primaryTeal }}>
+            monetization
+          </ThemedText>
+          .
+        </>
+      }
       footer={
         <AuthSwitchLink
           prompt="Already have an account?"
@@ -119,10 +131,15 @@ export default function RegisterScreen() {
         value={password}
       />
 
-      <AuthNotice message={error} />
+      {error ? (
+        <AuthNotice message={error} />
+      ) : (
+        <AuthInfo message="Enterprise-grade security to protect your data and earnings." />
+      )}
 
       <PrimaryButton
         label="Create account"
+        icon="arrow-forward"
         loading={isSubmitting}
         disabled={isBusy}
         onPress={() => {

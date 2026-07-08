@@ -76,4 +76,33 @@ export const AppColors = {
   inputBorderFocused: '#0F766E',
   cardBorder: 'rgba(13, 148, 136, 0.22)',
   danger: '#D92D20',
+  heroTeal: '#0A4F49',
+  heroTealDeep: '#073A35',
+  heroMuted: 'rgba(224, 244, 241, 0.78)',
+  sheetSurface: '#FFFFFF',
+  fieldSurface: '#F1F6F5',
+  fieldBorder: '#E2ECEA',
+  heroText: '#FFFFFF',
+  heroSubtle: 'rgba(240, 253, 249, 0.82)',
+  glassField: 'rgba(255, 255, 255, 0.26)',
+  glassFieldFocused: 'rgba(255, 255, 255, 0.44)',
+  glassFieldBorder: 'rgba(255, 255, 255, 0.55)',
+  glassCard: 'rgba(255, 255, 255, 0.20)',
+  glassCardBorder: 'rgba(255, 255, 255, 0.45)',
+  authBg: '#EDF5F2',
+  iconTeal: '#3E8E80',
+  noteSurface: '#EEF4F2',
+  noteBorder: '#E0EBE8',
+  decorDeep: '#0E7C6F',
+  decorMid: '#2AA894',
+  decorLight: '#7FCBBB',
+  decorPale: '#CDE9E1',
 } as const;
+
+/** Diagonal gradient behind the auth screens (deep teal → emerald → soft light green). */
+export const AuthGradient = {
+  colors: ['#083F3A', '#0C5D53', '#1E8C72', '#79C6A2'] as const,
+  locations: [0, 0.4, 0.72, 1] as const,
+  start: { x: 0.05, y: 0 },
+  end: { x: 0.95, y: 1 },
+};

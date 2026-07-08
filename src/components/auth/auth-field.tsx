@@ -32,7 +32,7 @@ export function AuthField({
         {label}
       </ThemedText>
       <View style={[styles.row, focused && styles.rowFocused, !editable && styles.rowDisabled]}>
-        <Ionicons name={icon} size={18} color={AppColors.glassMuted} style={styles.leadingIcon} />
+        <Ionicons name={icon} size={18} color={AppColors.iconTeal} style={styles.leadingIcon} />
         <TextInput
           editable={editable}
           placeholderTextColor={AppColors.glassMuted}
@@ -58,7 +58,7 @@ export function AuthField({
             <Ionicons
               name={hidden ? 'eye-off-outline' : 'eye-outline'}
               size={18}
-              color={AppColors.glassMuted}
+              color={AppColors.iconTeal}
             />
           </Pressable>
         ) : null}
@@ -76,17 +76,17 @@ const styles = StyleSheet.create({
   },
   row: {
     alignItems: 'center',
-    backgroundColor: AppColors.inputSurface,
-    borderColor: AppColors.inputBorder,
+    backgroundColor: AppColors.fieldSurface,
+    borderColor: AppColors.fieldBorder,
     borderCurve: 'continuous',
-    borderRadius: Spacing.two + 4,
-    borderWidth: 1,
+    borderRadius: 14,
+    borderWidth: 1.5,
     flexDirection: 'row',
-    minHeight: 52,
+    minHeight: 54,
     paddingHorizontal: Spacing.three,
   },
   rowFocused: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    backgroundColor: '#ffffff',
     borderColor: AppColors.inputBorderFocused,
   },
   rowDisabled: {

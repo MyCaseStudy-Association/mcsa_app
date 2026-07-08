@@ -22,7 +22,7 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   line: {
-    backgroundColor: AppColors.inputBorder,
+    backgroundColor: AppColors.fieldBorder,
     flex: 1,
     height: 1,
   },
