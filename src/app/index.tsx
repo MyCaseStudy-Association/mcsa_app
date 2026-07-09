@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AuthField } from '@/components/auth/auth-field';
@@ -10,15 +10,18 @@ import { OrDivider } from '@/components/auth/or-divider';
 import { PrimaryButton } from '@/components/auth/primary-button';
 import { SocialButton } from '@/components/auth/social-button';
 import { ThemedText } from '@/components/themed-text';
-import { AppColors, Spacing } from '@/constants/theme';
+import { AppPalette, Spacing } from '@/constants/theme';
 import { getSubmitErrorMessage } from '@/lib/auth-errors';
 import { useAuth } from '@/providers/auth-provider';
+import { useColors } from '@/providers/theme-provider';
 
 const INITIAL_EMAIL = 'rahul@example.com';
 const INITIAL_PASSWORD = 'Password123!';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { apiBaseUrl, signIn, status } = useAuth();
   const [email, setEmail] = useState(INITIAL_EMAIL);
   const [password, setPassword] = useState(INITIAL_PASSWORD);
@@ -27,7 +30,7 @@ export default function LoginScreen() {
 
   useEffect(() => {
     if (status === 'authenticated') {
-      router.replace('/dashboard');
+      router.replace('/home');
     }
   }, [router, status]);
 
@@ -46,7 +49,7 @@ export default function LoginScreen() {
 
     try {
       await signIn({ email: trimmedEmail, password });
-      router.replace('/dashboard');
+      router.replace('/home');
     } catch (submitError) {
       setError(getSubmitErrorMessage(submitError, apiBaseUrl));
     } finally {
@@ -131,14 +134,16 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  passwordBlock: {
-    gap: Spacing.two,
-  },
-  forgot: {
-    alignSelf: 'flex-end',
-  },
-  forgotText: {
-    color: AppColors.primaryTeal,
-  },
-});
+function createStyles(c: AppPalette) {
+  return StyleSheet.create({
+    passwordBlock: {
+      gap: Spacing.two,
+    },
+    forgot: {
+      alignSelf: 'flex-end',
+    },
+    forgotText: {
+      color: c.primaryTeal,
+    },
+  });
+}

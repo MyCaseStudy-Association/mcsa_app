@@ -4,23 +4,34 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import { AppColors } from '@/constants/theme';
 import { AuthProvider } from '@/providers/auth-provider';
+import { ThemeProvider, useColors } from '@/providers/theme-provider';
 
 SplashScreen.preventAutoHideAsync();
+
+function RootStack() {
+  const colors = useColors();
+  return (
+    <>
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.screenBg } }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="register" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="(tabs)" />
+      </Stack>
+      <StatusBar backgroundColor={colors.screenBg} style={colors.statusBarStyle} />
+    </>
+  );
+}
 
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <AnimatedSplashOverlay />
-      <AuthProvider>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="register" options={{ animation: 'slide_from_right' }} />
-          <Stack.Screen name="(tabs)" />
-        </Stack>
-      </AuthProvider>
-      <StatusBar backgroundColor={AppColors.authBg} style="dark" />
+      <ThemeProvider>
+        <AuthProvider>
+          <RootStack />
+        </AuthProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

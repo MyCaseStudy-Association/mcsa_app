@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import { PropsWithChildren, ReactNode } from 'react';
+import { PropsWithChildren, ReactNode, useMemo } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -13,7 +13,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthDecor } from '@/components/auth/auth-decor';
 import { BrandMark } from '@/components/brand/brand-mark';
 import { ThemedText } from '@/components/themed-text';
-import { AppColors, Spacing } from '@/constants/theme';
+import { AppPalette, Spacing } from '@/constants/theme';
+import { useColors } from '@/providers/theme-provider';
 
 type AuthLayoutProps = PropsWithChildren<{
   eyebrow: string;
@@ -26,10 +27,12 @@ const COLUMN_MAX_WIDTH = 460;
 
 export function AuthLayout({ eyebrow, title, subtitle, footer, children }: AuthLayoutProps) {
   const insets = useSafeAreaInsets();
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
     <View style={styles.screen}>
-      <StatusBar style="dark" />
+      <StatusBar style={colors.statusBarStyle} />
       <AuthDecor />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -69,9 +72,10 @@ export function AuthLayout({ eyebrow, title, subtitle, footer, children }: AuthL
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(c: AppPalette) {
+  return StyleSheet.create({
   screen: {
-    backgroundColor: AppColors.authBg,
+    backgroundColor: c.screenBg,
     flex: 1,
   },
   flex: {
@@ -99,38 +103,38 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.two,
   },
   wordmark: {
-    color: AppColors.glassText,
+    color: c.glassText,
     fontSize: 18,
     fontWeight: '700',
     letterSpacing: 3,
   },
   eyebrow: {
-    color: AppColors.primaryTeal,
+    color: c.primaryTeal,
     fontSize: 13,
     fontWeight: '700',
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
   title: {
-    color: AppColors.glassText,
+    color: c.glassText,
     fontSize: 38,
     fontWeight: '700',
     letterSpacing: -0.5,
     lineHeight: 42,
   },
   subtitle: {
-    color: AppColors.glassMuted,
+    color: c.glassMuted,
     maxWidth: 360,
   },
   card: {
-    backgroundColor: '#ffffff',
-    borderColor: 'rgba(15, 118, 110, 0.10)',
+    backgroundColor: c.surface,
+    borderColor: c.surfaceGlassBorder,
     borderCurve: 'continuous',
     borderRadius: 28,
     borderWidth: 1,
     gap: Spacing.four,
     padding: Spacing.four,
-    shadowColor: AppColors.primaryTealDark,
+    shadowColor: c.primaryTealDark,
     shadowOffset: { height: 12, width: 0 },
     shadowOpacity: 0.1,
     shadowRadius: 24,
@@ -141,4 +145,5 @@ const styles = StyleSheet.create({
   footer: {
     alignItems: 'center',
   },
-});
+  });
+}

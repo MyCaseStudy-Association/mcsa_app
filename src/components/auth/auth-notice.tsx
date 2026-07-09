@@ -1,17 +1,22 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { AppColors, Spacing } from '@/constants/theme';
+import { AppPalette, Spacing } from '@/constants/theme';
+import { useColors } from '@/providers/theme-provider';
 
 export function AuthNotice({ message }: { message: string }) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   if (!message) {
     return null;
   }
 
   return (
     <View style={styles.banner}>
-      <Ionicons name="alert-circle" size={18} color={AppColors.danger} />
+      <Ionicons name="alert-circle" size={18} color={colors.danger} />
       <ThemedText selectable type="small" style={styles.text}>
         {message}
       </ThemedText>
@@ -19,20 +24,22 @@ export function AuthNotice({ message }: { message: string }) {
   );
 }
 
-const styles = StyleSheet.create({
-  banner: {
-    alignItems: 'flex-start',
-    backgroundColor: 'rgba(217, 45, 32, 0.10)',
-    borderColor: 'rgba(217, 45, 32, 0.30)',
-    borderRadius: Spacing.two,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-  },
-  text: {
-    color: AppColors.danger,
-    flex: 1,
-  },
-});
+function createStyles(c: AppPalette) {
+  return StyleSheet.create({
+    banner: {
+      alignItems: 'flex-start',
+      backgroundColor: 'rgba(217, 45, 32, 0.10)',
+      borderColor: 'rgba(217, 45, 32, 0.30)',
+      borderRadius: Spacing.two,
+      borderWidth: 1,
+      flexDirection: 'row',
+      gap: Spacing.two,
+      paddingHorizontal: Spacing.three,
+      paddingVertical: Spacing.two,
+    },
+    text: {
+      color: c.danger,
+      flex: 1,
+    },
+  });
+}

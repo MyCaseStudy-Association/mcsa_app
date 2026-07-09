@@ -1,8 +1,10 @@
+import { useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { GoogleIcon } from '@/components/auth/google-icon';
 import { ThemedText } from '@/components/themed-text';
-import { AppColors, Spacing } from '@/constants/theme';
+import { AppPalette, Spacing } from '@/constants/theme';
+import { useColors } from '@/providers/theme-provider';
 
 type SocialButtonProps = {
   label: string;
@@ -11,6 +13,8 @@ type SocialButtonProps = {
 };
 
 export function SocialButton({ label, disabled = false, onPress }: SocialButtonProps) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <Pressable
       accessibilityRole="button"
@@ -31,31 +35,33 @@ export function SocialButton({ label, disabled = false, onPress }: SocialButtonP
   );
 }
 
-const styles = StyleSheet.create({
-  button: {
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderColor: AppColors.fieldBorder,
-    borderCurve: 'continuous',
-    borderRadius: 14,
-    borderWidth: 1.5,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    minHeight: 54,
-    paddingHorizontal: Spacing.three,
-  },
-  disabled: {
-    opacity: 0.55,
-  },
-  pressed: {
-    opacity: 0.86,
-  },
-  label: {
-    color: AppColors.glassText,
-    fontSize: 15,
-    marginLeft: Spacing.two,
-  },
-  spacer: {
-    width: 20,
-  },
-});
+function createStyles(c: AppPalette) {
+  return StyleSheet.create({
+    button: {
+      alignItems: 'center',
+      backgroundColor: c.surface,
+      borderColor: c.fieldBorder,
+      borderCurve: 'continuous',
+      borderRadius: 14,
+      borderWidth: 1.5,
+      flexDirection: 'row',
+      justifyContent: 'center',
+      minHeight: 54,
+      paddingHorizontal: Spacing.three,
+    },
+    disabled: {
+      opacity: 0.55,
+    },
+    pressed: {
+      opacity: 0.86,
+    },
+    label: {
+      color: c.glassText,
+      fontSize: 15,
+      marginLeft: Spacing.two,
+    },
+    spacer: {
+      width: 20,
+    },
+  });
+}

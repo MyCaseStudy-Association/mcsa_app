@@ -1,7 +1,9 @@
+import { useMemo } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { AppColors, Spacing } from '@/constants/theme';
+import { AppPalette, Spacing } from '@/constants/theme';
+import { useColors } from '@/providers/theme-provider';
 
 type AuthSwitchLinkProps = {
   prompt: string;
@@ -10,6 +12,8 @@ type AuthSwitchLinkProps = {
 };
 
 export function AuthSwitchLink({ prompt, action, onPress }: AuthSwitchLinkProps) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <Pressable
       accessibilityRole="button"
@@ -26,20 +30,22 @@ export function AuthSwitchLink({ prompt, action, onPress }: AuthSwitchLinkProps)
   );
 }
 
-const styles = StyleSheet.create({
-  row: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'center',
-    paddingVertical: Spacing.two,
-  },
-  pressed: {
-    opacity: 0.7,
-  },
-  prompt: {
-    color: AppColors.glassMuted,
-  },
-  action: {
-    color: AppColors.primaryTeal,
-  },
-});
+function createStyles(c: AppPalette) {
+  return StyleSheet.create({
+    row: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      justifyContent: 'center',
+      paddingVertical: Spacing.two,
+    },
+    pressed: {
+      opacity: 0.7,
+    },
+    prompt: {
+      color: c.glassMuted,
+    },
+    action: {
+      color: c.primaryTeal,
+    },
+  });
+}

@@ -10,9 +10,9 @@ import { OrDivider } from '@/components/auth/or-divider';
 import { PrimaryButton } from '@/components/auth/primary-button';
 import { SocialButton } from '@/components/auth/social-button';
 import { ThemedText } from '@/components/themed-text';
-import { AppColors } from '@/constants/theme';
 import { getSubmitErrorMessage } from '@/lib/auth-errors';
 import { useAuth } from '@/providers/auth-provider';
+import { useColors } from '@/providers/theme-provider';
 
 const INITIAL_NAME = '';
 const INITIAL_EMAIL = '';
@@ -20,6 +20,7 @@ const INITIAL_PASSWORD = '';
 
 export default function RegisterScreen() {
   const router = useRouter();
+  const colors = useColors();
   const { apiBaseUrl, signUp, status } = useAuth();
   const [name, setName] = useState(INITIAL_NAME);
   const [email, setEmail] = useState(INITIAL_EMAIL);
@@ -29,7 +30,7 @@ export default function RegisterScreen() {
 
   useEffect(() => {
     if (status === 'authenticated') {
-      router.replace('/dashboard');
+      router.replace('/home');
     }
   }, [router, status]);
 
@@ -59,7 +60,7 @@ export default function RegisterScreen() {
 
     try {
       await signUp({ name: trimmedName, email: trimmedEmail, password });
-      router.replace('/dashboard');
+      router.replace('/home');
     } catch (submitError) {
       setError(getSubmitErrorMessage(submitError, apiBaseUrl));
     } finally {
@@ -74,7 +75,7 @@ export default function RegisterScreen() {
       subtitle={
         <>
           Join MCSA and unlock the power of data{' '}
-          <ThemedText type="smallBold" style={{ color: AppColors.primaryTeal }}>
+          <ThemedText type="smallBold" style={{ color: colors.primaryTeal }}>
             monetization
           </ThemedText>
           .
@@ -94,7 +95,7 @@ export default function RegisterScreen() {
         icon="person-outline"
         label="Full name"
         onChangeText={setName}
-        placeholder="Rahul Panchal"
+        placeholder="John Carter"
         returnKeyType="next"
         textContentType="name"
         value={name}

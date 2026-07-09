@@ -2,16 +2,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { Redirect, Tabs } from 'expo-router';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
-import { AppColors } from '@/constants/theme';
 import { useAuth } from '@/providers/auth-provider';
+import { useColors } from '@/providers/theme-provider';
 
 export default function TabsLayout() {
   const { status } = useAuth();
+  const colors = useColors();
 
   if (status === 'checking') {
     return (
-      <View style={styles.loading}>
-        <ActivityIndicator color={AppColors.primaryTeal} />
+      <View style={[styles.loading, { backgroundColor: colors.screenBg }]}>
+        <ActivityIndicator color={colors.primaryTeal} />
       </View>
     );
   }
@@ -24,17 +25,29 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: AppColors.primaryTeal,
-        tabBarInactiveTintColor: AppColors.glassMuted,
-        tabBarStyle: styles.tabBar,
+        tabBarActiveTintColor: colors.primaryTeal,
+        tabBarInactiveTintColor: colors.glassMuted,
+        tabBarStyle: { backgroundColor: colors.tabBar, borderTopColor: colors.fieldBorder },
         tabBarLabelStyle: styles.tabLabel,
-        sceneStyle: styles.scene,
+        sceneStyle: { backgroundColor: colors.screenBg },
       }}>
       <Tabs.Screen
-        name="dashboard"
+        name="home"
         options={{
-          title: 'Dashboard',
-          tabBarIcon: ({ color, size }) => <Ionicons name="grid-outline" color={color} size={size} />,
+          title: 'Home',
+          tabBarIcon: ({ color, size }) => <Ionicons name="home-outline" color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
+        name="sources"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="notifications"
+        options={{
+          href: null,
         }}
       />
       <Tabs.Screen
@@ -58,16 +71,8 @@ export default function TabsLayout() {
 const styles = StyleSheet.create({
   loading: {
     alignItems: 'center',
-    backgroundColor: AppColors.authBg,
     flex: 1,
     justifyContent: 'center',
-  },
-  scene: {
-    backgroundColor: AppColors.authBg,
-  },
-  tabBar: {
-    backgroundColor: '#ffffff',
-    borderTopColor: AppColors.fieldBorder,
   },
   tabLabel: {
     fontSize: 12,

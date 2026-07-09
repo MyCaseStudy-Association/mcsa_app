@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, TextInputProps, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { AppColors, Spacing } from '@/constants/theme';
+import { AppPalette, Spacing } from '@/constants/theme';
+import { useColors } from '@/providers/theme-provider';
 
 type AuthFieldProps = TextInputProps & {
   label: string;
@@ -21,6 +22,8 @@ export function AuthField({
   style,
   ...rest
 }: AuthFieldProps) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [focused, setFocused] = useState(false);
   const [hidden, setHidden] = useState(true);
 
@@ -32,10 +35,10 @@ export function AuthField({
         {label}
       </ThemedText>
       <View style={[styles.row, focused && styles.rowFocused, !editable && styles.rowDisabled]}>
-        <Ionicons name={icon} size={18} color={AppColors.iconTeal} style={styles.leadingIcon} />
+        <Ionicons name={icon} size={18} color={colors.iconTeal} style={styles.leadingIcon} />
         <TextInput
           editable={editable}
-          placeholderTextColor={AppColors.glassMuted}
+          placeholderTextColor={colors.glassMuted}
           secureTextEntry={isSecure}
           style={[styles.input, style]}
           {...rest}
@@ -58,7 +61,7 @@ export function AuthField({
             <Ionicons
               name={hidden ? 'eye-off-outline' : 'eye-outline'}
               size={18}
-              color={AppColors.iconTeal}
+              color={colors.iconTeal}
             />
           </Pressable>
         ) : null}
@@ -67,42 +70,44 @@ export function AuthField({
   );
 }
 
-const styles = StyleSheet.create({
-  field: {
-    gap: Spacing.two,
-  },
-  label: {
-    color: AppColors.glassText,
-  },
-  row: {
-    alignItems: 'center',
-    backgroundColor: AppColors.fieldSurface,
-    borderColor: AppColors.fieldBorder,
-    borderCurve: 'continuous',
-    borderRadius: 14,
-    borderWidth: 1.5,
-    flexDirection: 'row',
-    minHeight: 54,
-    paddingHorizontal: Spacing.three,
-  },
-  rowFocused: {
-    backgroundColor: '#ffffff',
-    borderColor: AppColors.inputBorderFocused,
-  },
-  rowDisabled: {
-    opacity: 0.6,
-  },
-  leadingIcon: {
-    marginRight: Spacing.two,
-  },
-  input: {
-    color: AppColors.glassText,
-    flex: 1,
-    fontSize: 16,
-    paddingVertical: Spacing.two,
-  },
-  trailing: {
-    marginLeft: Spacing.two,
-    padding: Spacing.half,
-  },
-});
+function createStyles(c: AppPalette) {
+  return StyleSheet.create({
+    field: {
+      gap: Spacing.two,
+    },
+    label: {
+      color: c.glassText,
+    },
+    row: {
+      alignItems: 'center',
+      backgroundColor: c.fieldSurface,
+      borderColor: c.fieldBorder,
+      borderCurve: 'continuous',
+      borderRadius: 14,
+      borderWidth: 1.5,
+      flexDirection: 'row',
+      minHeight: 54,
+      paddingHorizontal: Spacing.three,
+    },
+    rowFocused: {
+      backgroundColor: c.surface,
+      borderColor: c.inputBorderFocused,
+    },
+    rowDisabled: {
+      opacity: 0.6,
+    },
+    leadingIcon: {
+      marginRight: Spacing.two,
+    },
+    input: {
+      color: c.glassText,
+      flex: 1,
+      fontSize: 16,
+      paddingVertical: Spacing.two,
+    },
+    trailing: {
+      marginLeft: Spacing.two,
+      padding: Spacing.half,
+    },
+  });
+}

@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useMemo } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { AppColors } from '@/constants/theme';
+import { AppPalette } from '@/constants/theme';
+import { useColors } from '@/providers/theme-provider';
 
 type PrimaryButtonProps = {
   label: string;
@@ -19,6 +21,8 @@ export function PrimaryButton({
   icon,
   onPress,
 }: PrimaryButtonProps) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const isBlocked = disabled || loading;
 
   return (
@@ -50,35 +54,37 @@ export function PrimaryButton({
   );
 }
 
-const styles = StyleSheet.create({
-  button: {
-    alignItems: 'center',
-    backgroundColor: AppColors.primaryTeal,
-    borderCurve: 'continuous',
-    borderRadius: 14,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    minHeight: 56,
-    paddingHorizontal: 20,
-    shadowColor: AppColors.primaryTealDark,
-    shadowOffset: { height: 8, width: 0 },
-    shadowOpacity: 0.25,
-    shadowRadius: 14,
-  },
-  disabled: {
-    opacity: 0.55,
-  },
-  pressed: {
-    opacity: 0.88,
-    transform: [{ scale: 0.99 }],
-  },
-  label: {
-    color: '#ffffff',
-    fontSize: 16,
-    letterSpacing: 0.3,
-  },
-  icon: {
-    position: 'absolute',
-    right: 20,
-  },
-});
+function createStyles(c: AppPalette) {
+  return StyleSheet.create({
+    button: {
+      alignItems: 'center',
+      backgroundColor: c.buttonPrimary,
+      borderCurve: 'continuous',
+      borderRadius: 14,
+      flexDirection: 'row',
+      justifyContent: 'center',
+      minHeight: 56,
+      paddingHorizontal: 20,
+      shadowColor: c.primaryTealDark,
+      shadowOffset: { height: 8, width: 0 },
+      shadowOpacity: 0.25,
+      shadowRadius: 14,
+    },
+    disabled: {
+      opacity: 0.55,
+    },
+    pressed: {
+      opacity: 0.88,
+      transform: [{ scale: 0.99 }],
+    },
+    label: {
+      color: '#ffffff',
+      fontSize: 16,
+      letterSpacing: 0.3,
+    },
+    icon: {
+      position: 'absolute',
+      right: 20,
+    },
+  });
+}

@@ -1,11 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { AppScreen } from '@/components/app-screen';
 import { GlassPanel } from '@/components/glass-panel';
 import { ThemedText } from '@/components/themed-text';
-import { AppColors, Spacing } from '@/constants/theme';
+import { AppPalette, Spacing } from '@/constants/theme';
 import { useRefresh } from '@/hooks/use-refresh';
+import { useColors } from '@/providers/theme-provider';
 
 const collections = [
   {
@@ -32,6 +34,8 @@ const collections = [
 
 export default function ExploreScreen() {
   const { refreshing, onRefresh } = useRefresh();
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
     <AppScreen
@@ -43,7 +47,7 @@ export default function ExploreScreen() {
         {collections.map((item) => (
           <GlassPanel key={item.title} style={styles.card}>
             <View style={styles.iconWrap}>
-              <Ionicons name={item.icon} size={20} color={AppColors.primaryTeal} />
+              <Ionicons name={item.icon} size={20} color={colors.primaryTeal} />
             </View>
             <ThemedText type="smallBold" style={styles.cardTitle}>
               {item.title}
@@ -58,32 +62,34 @@ export default function ExploreScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.three,
-  },
-  card: {
-    flexBasis: 220,
-    flexGrow: 1,
-    gap: Spacing.two,
-    padding: Spacing.three,
-  },
-  iconWrap: {
-    alignItems: 'center',
-    backgroundColor: AppColors.noteSurface,
-    borderRadius: 12,
-    height: 44,
-    justifyContent: 'center',
-    marginBottom: Spacing.one,
-    width: 44,
-  },
-  cardTitle: {
-    color: AppColors.glassText,
-    fontSize: 16,
-  },
-  cardDesc: {
-    color: AppColors.glassMuted,
-  },
-});
+function createStyles(c: AppPalette) {
+  return StyleSheet.create({
+    grid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: Spacing.three,
+    },
+    card: {
+      flexBasis: 220,
+      flexGrow: 1,
+      gap: Spacing.two,
+      padding: Spacing.three,
+    },
+    iconWrap: {
+      alignItems: 'center',
+      backgroundColor: c.noteSurface,
+      borderRadius: 12,
+      height: 44,
+      justifyContent: 'center',
+      marginBottom: Spacing.one,
+      width: 44,
+    },
+    cardTitle: {
+      color: c.glassText,
+      fontSize: 16,
+    },
+    cardDesc: {
+      color: c.glassMuted,
+    },
+  });
+}

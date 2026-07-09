@@ -1,16 +1,17 @@
-import { PropsWithChildren, ReactNode } from 'react';
+import { PropsWithChildren, ReactNode, useMemo } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BrandMark } from '@/components/brand/brand-mark';
 import { ThemedText } from '@/components/themed-text';
-import { AppColors, MaxContentWidth, Spacing } from '@/constants/theme';
+import { AppPalette, MaxContentWidth, Spacing } from '@/constants/theme';
+import { useColors } from '@/providers/theme-provider';
 
 type AppScreenProps = PropsWithChildren<{
   title: string;
   subtitle?: string;
   headerRight?: ReactNode;
   showBrand?: boolean;
+  stickyHeader?: boolean;
   refreshing?: boolean;
   onRefresh?: () => void;
 }>;
@@ -20,12 +21,39 @@ export function AppScreen({
   subtitle,
   headerRight,
   showBrand = true,
+  stickyHeader = true,
   refreshing = false,
   onRefresh,
   children,
 }: AppScreenProps) {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const header = (
+    <View style={styles.header}>
+      <View style={styles.heading}>
+        <View style={styles.headingCopy}>
+          <ThemedText type="title" style={styles.title}>
+            {title}
+          </ThemedText>
+          {subtitle ? (
+            <ThemedText type="small" style={styles.subtitle}>
+              {subtitle}
+            </ThemedText>
+          ) : null}
+        </View>
+      </View>
+      {headerRight}
+    </View>
+  );
+
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'left', 'right']}>
+      {stickyHeader ? (
+        <View style={styles.headerBar}>
+          <View style={styles.headerInner}>{header}</View>
+        </View>
+      ) : null}
+
       <ScrollView
         contentInsetAdjustmentBehavior="never"
         showsVerticalScrollIndicator={false}
@@ -35,30 +63,14 @@ export function AppScreen({
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor={AppColors.primaryTeal}
-              colors={[AppColors.primaryTeal]}
+              tintColor={colors.primaryTeal}
+              colors={[colors.primaryTeal]}
             />
           ) : undefined
         }
         contentContainerStyle={styles.content}>
         <View style={styles.container}>
-          <View style={styles.header}>
-            <View style={styles.heading}>
-              {showBrand ? <BrandMark size={40} /> : null}
-              <View style={styles.headingCopy}>
-                <ThemedText type="title" style={styles.title}>
-                  {title}
-                </ThemedText>
-                {subtitle ? (
-                  <ThemedText type="small" style={styles.subtitle}>
-                    {subtitle}
-                  </ThemedText>
-                ) : null}
-              </View>
-            </View>
-            {headerRight}
-          </View>
-
+          {!stickyHeader ? header : null}
           {children}
         </View>
       </ScrollView>
@@ -66,52 +78,68 @@ export function AppScreen({
   );
 }
 
-const styles = StyleSheet.create({
-  screen: {
-    backgroundColor: AppColors.authBg,
-    flex: 1,
-  },
-  scroll: {
-    flex: 1,
-  },
-  content: {
-    flexGrow: 1,
-    paddingBottom: Spacing.six,
-    paddingHorizontal: Spacing.three,
-    paddingTop: Spacing.four,
-  },
-  container: {
-    alignSelf: 'center',
-    flex: 1,
-    gap: Spacing.four,
-    maxWidth: MaxContentWidth,
-    width: '100%',
-  },
-  header: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.three,
-    justifyContent: 'space-between',
-  },
-  heading: {
-    alignItems: 'center',
-    flex: 1,
-    flexDirection: 'row',
-    gap: Spacing.two,
-    minWidth: 200,
-  },
-  headingCopy: {
-    flex: 1,
-    gap: Spacing.one,
-    minWidth: 0,
-  },
-  title: {
-    color: AppColors.glassText,
-    fontSize: 34,
-    lineHeight: 40,
-  },
-  subtitle: {
-    color: AppColors.glassMuted,
-  },
-});
+function createStyles(c: AppPalette) {
+  return StyleSheet.create({
+    screen: {
+      backgroundColor: c.screenBg,
+      flex: 1,
+    },
+    headerBar: {
+      backgroundColor: c.screenBg,
+      borderBottomColor: c.surfaceGlassBorder,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      paddingBottom: Spacing.three,
+      paddingHorizontal: Spacing.three,
+      paddingTop: Spacing.three,
+    },
+    headerInner: {
+      alignSelf: 'center',
+      maxWidth: MaxContentWidth,
+      width: '100%',
+    },
+    scroll: {
+      flex: 1,
+    },
+    content: {
+      flexGrow: 1,
+      paddingBottom: Spacing.six,
+      paddingHorizontal: Spacing.three,
+      paddingTop: Spacing.four,
+    },
+    container: {
+      alignSelf: 'center',
+      flex: 1,
+      gap: Spacing.four,
+      maxWidth: MaxContentWidth,
+      width: '100%',
+    },
+    header: {
+      alignItems: 'flex-start',
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: Spacing.three,
+      justifyContent: 'space-between',
+    },
+    heading: {
+      alignItems: 'center',
+      flex: 1,
+      flexDirection: 'row',
+      gap: Spacing.two,
+      minWidth: 200,
+    },
+    headingCopy: {
+      flex: 1,
+      gap: Spacing.one,
+      minWidth: 0,
+    },
+    title: {
+      color: c.glassText,
+      fontSize: 26,
+      fontWeight: '700',
+      lineHeight: 32,
+    },
+    subtitle: {
+      color: c.glassMuted,
+    },
+  });
+}
