@@ -2,8 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Redirect, Tabs } from 'expo-router';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
-import { useAuth } from '@/providers/auth-provider';
-import { useColors } from '@/providers/theme-provider';
+import { useAuth } from '@/features/auth/providers/auth-provider';
+import { useColors } from '@/theme/theme-provider';
 
 export default function TabsLayout() {
   const { status } = useAuth();

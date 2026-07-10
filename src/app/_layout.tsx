@@ -3,9 +3,9 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import { AuthProvider } from '@/providers/auth-provider';
-import { ThemeProvider, useColors } from '@/providers/theme-provider';
+import { AnimatedSplashOverlay } from '@/components/brand/animated-splash-overlay';
+import { AuthProvider } from '@/features/auth/providers/auth-provider';
+import { ThemeProvider, useColors } from '@/theme/theme-provider';
 
 SplashScreen.preventAutoHideAsync();
 

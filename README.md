@@ -1,56 +1,38 @@
-# Welcome to your Expo app 👋
+# MCSA
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+MCSA is an Expo Router application for managing imported chat sources, member data, and projected earnings.
 
-## Get started
-
-1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Getting started
 
 ```bash
-npm run reset-project
+npm install
+npm start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+The app is designed to run in Expo Go first. Use `npm run ios`, `npm run android`, or `npm run web` to open a specific platform.
 
-### Other setup steps
+## Project structure
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+```text
+src/
+  app/          Expo Router route files and navigation layouts only
+  components/   App-wide brand and UI primitives
+  features/     Feature-owned screens, components, data, providers, and services
+  hooks/        Shared hooks that are not owned by one feature
+  theme/        Theme tokens, persistence, provider, and web font tokens
+```
 
-## Learn more
+Route files under `src/app` should stay thin. Application behavior belongs to the matching folder under `src/features`, while reusable controls belong in `src/components/ui`.
 
-To learn more about developing your project with Expo, look at the following resources:
+## Quality checks
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```bash
+npm run validate
+npx expo-doctor
+```
 
-## Join the community
+`validate` runs ESLint and TypeScript. Run both commands before opening a pull request.
 
-Join our community of developers creating universal apps.
+## Environment
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Authentication reads its server URL from `EXPO_PUBLIC_AUTH_API_URL`. When the variable is omitted, the existing development fallback in the auth service is used.
