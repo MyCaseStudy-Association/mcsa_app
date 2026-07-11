@@ -66,7 +66,7 @@ export function AnimatedIcon() {
       <Animated.View style={styles.background} entering={keyframe.duration(DURATION)} />
 
       <Animated.View style={styles.imageContainer} entering={logoKeyframe.duration(DURATION)}>
-        <Image contentFit="contain" style={styles.image} source={AppAssets.mcsaMark} />
+        <Image contentFit="contain" style={styles.image} source={AppAssets.portibilifyMark} />
       </Animated.View>
     </View>
   );

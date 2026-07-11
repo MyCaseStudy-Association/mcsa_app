@@ -3,9 +3,9 @@ import { fetch } from 'expo/fetch';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
-const ACCESS_TOKEN_KEY = 'mcsa.access-token';
-const REFRESH_TOKEN_KEY = 'mcsa.refresh-token';
-const USER_KEY = 'mcsa.user';
+const ACCESS_TOKEN_KEY = 'portibilify.access-token';
+const REFRESH_TOKEN_KEY = 'portibilify.refresh-token';
+const USER_KEY = 'portibilify.user';
 const DEFAULT_API_PORT = '6000';
 const DEFAULT_WEB_API_PORT = '6001';
 

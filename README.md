@@ -1,6 +1,6 @@
-# MCSA
+# Portibilify
 
-MCSA is an Expo Router application for managing imported chat sources, member data, and projected earnings.
+Portibilify is an Expo Router application for managing imported chat sources, member data, and projected earnings.
 
 ## Getting started
 

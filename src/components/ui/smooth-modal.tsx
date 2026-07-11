@@ -37,7 +37,7 @@ export function SmoothModal({
   onClose,
   placement = 'bottom',
   contentStyle,
-  keyboardAvoiding = false,
+  keyboardAvoiding = true,
   children,
 }: SmoothModalProps) {
   const { colors, scheme } = useAppTheme();
@@ -140,7 +140,7 @@ export function SmoothModal({
       visible={mounted}>
       {keyboardAvoiding ? (
         <KeyboardAvoidingView
-          behavior={process.env.EXPO_OS === 'ios' ? 'padding' : undefined}
+          behavior={process.env.EXPO_OS === 'ios' ? 'padding' : 'height'}
           style={styles.flex}>
           {modalContent}
         </KeyboardAvoidingView>

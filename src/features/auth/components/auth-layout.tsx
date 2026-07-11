@@ -2,7 +2,6 @@ import { StatusBar } from 'expo-status-bar';
 import { PropsWithChildren, ReactNode, useMemo } from 'react';
 import {
   KeyboardAvoidingView,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -35,10 +34,12 @@ export function AuthLayout({ eyebrow, title, subtitle, footer, children }: AuthL
       <StatusBar style={colors.statusBarStyle} />
       <AuthDecor />
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={process.env.EXPO_OS === 'ios' ? 'padding' : 'height'}
         style={styles.flex}>
         <ScrollView
+          automaticallyAdjustKeyboardInsets
           bounces={false}
+          keyboardDismissMode={process.env.EXPO_OS === 'ios' ? 'interactive' : 'on-drag'}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[
@@ -52,7 +53,7 @@ export function AuthLayout({ eyebrow, title, subtitle, footer, children }: AuthL
             <View style={styles.header}>
               <View style={styles.brandRow}>
                 <BrandMark size={30} />
-                <Text style={styles.wordmark}>MCSA</Text>
+                <Text style={styles.wordmark}>Portibilify</Text>
               </View>
               <Text style={styles.eyebrow}>{eyebrow}</Text>
               <Text style={styles.title}>{title}</Text>

@@ -187,7 +187,7 @@ async function resize(source, destination, width, height, backgroundColor = 'tra
 }
 
 async function main() {
-  const sourceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mcsa-assets-'));
+  const sourceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'portibilify-assets-'));
 
   const app = createPng(1024, 1024, lightBackground);
   drawMark(app, 152, 152, 720);
@@ -206,10 +206,10 @@ async function main() {
 
   const mark = createPng(512, 512);
   drawMark(mark, 48, 48, 416);
-  const markSource = path.join(sourceDir, 'mcsa-mark-source.png');
+  const markSource = path.join(sourceDir, 'portibilify-mark-source.png');
   writePng(markSource, mark);
 
-  await resize(markSource, path.join(root, 'assets', 'images', 'mcsa-mark.png'), 256, 256);
+  await resize(markSource, path.join(root, 'assets', 'images', 'portibilify-mark.png'), 256, 256);
   await resize(markSource, path.join(root, 'assets', 'icons', 'splash-icon.png'), 256, 256);
   await resize(path.join(root, 'assets', 'icons', 'app-icon.png'), path.join(root, 'assets', 'icons', 'favicon.png'), 64, 64, lightBackground);
 

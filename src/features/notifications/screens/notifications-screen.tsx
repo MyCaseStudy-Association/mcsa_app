@@ -64,7 +64,7 @@ const INITIAL: Notification[] = [
   },
   {
     id: '5',
-    title: 'Welcome to MCSA',
+    title: 'Welcome to Portibilify',
     body: 'Connect a source to start earning from your chats.',
     time: '2 days',
     period: 'earlier',

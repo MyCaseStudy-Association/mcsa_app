@@ -20,13 +20,11 @@ export function EditProfileModal({ visible, profile, onClose, onSave }: EditProf
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [draft, setDraft] = useState(profile);
-  const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (visible) {
       setDraft(profile);
-      setError('');
     }
   }, [profile, visible]);
 
@@ -35,27 +33,10 @@ export function EditProfileModal({ visible, profile, onClose, onSave }: EditProf
   }
 
   async function handleSave() {
-    const name = draft.name.trim();
-    const email = draft.email.trim();
-
-    if (!name) {
-      setError('Name is required.');
-      return;
-    }
-    if (!email || !email.includes('@')) {
-      setError('Enter a valid email address.');
-      return;
-    }
-
-    setError('');
     setSaving(true);
     try {
       await onSave({
-        name,
-        email: email.toLowerCase(),
         phone: draft.phone.trim(),
-        organization: draft.organization.trim(),
-        role: draft.role.trim(),
         location: draft.location.trim(),
       });
       onClose();
@@ -78,26 +59,11 @@ export function EditProfileModal({ visible, profile, onClose, onSave }: EditProf
             </View>
 
           <ScrollView
+            automaticallyAdjustKeyboardInsets
+            keyboardDismissMode={process.env.EXPO_OS === 'ios' ? 'interactive' : 'on-drag'}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.form}>
-            <AuthField
-              autoCapitalize="words"
-              icon="person-outline"
-              label="Full name"
-              onChangeText={(value) => update('name', value)}
-              placeholder="John Carter"
-              value={draft.name}
-            />
-            <AuthField
-              autoCapitalize="none"
-              icon="mail-outline"
-              inputMode="email"
-              label="Email"
-              onChangeText={(value) => update('email', value)}
-              placeholder="you@example.com"
-              value={draft.email}
-            />
             <AuthField
               icon="call-outline"
               inputMode="tel"
@@ -107,32 +73,12 @@ export function EditProfileModal({ visible, profile, onClose, onSave }: EditProf
               value={draft.phone}
             />
             <AuthField
-              icon="business-outline"
-              label="Organization"
-              onChangeText={(value) => update('organization', value)}
-              placeholder="MCSA"
-              value={draft.organization}
-            />
-            <AuthField
-              icon="briefcase-outline"
-              label="Role"
-              onChangeText={(value) => update('role', value)}
-              placeholder="Member"
-              value={draft.role}
-            />
-            <AuthField
               icon="location-outline"
               label="Location"
               onChangeText={(value) => update('location', value)}
               placeholder="San Francisco, CA"
               value={draft.location}
             />
-
-            {error ? (
-              <ThemedText type="small" style={styles.error}>
-                {error}
-              </ThemedText>
-            ) : null}
 
             <PrimaryButton label="Save changes" loading={saving} onPress={() => void handleSave()} />
           </ScrollView>
@@ -172,9 +118,6 @@ function createStyles(c: AppPalette) {
     form: {
       gap: Spacing.three,
       paddingBottom: Spacing.five,
-    },
-    error: {
-      color: c.danger,
     },
   });
 }

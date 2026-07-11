@@ -61,7 +61,7 @@ export default function LoginScreen() {
     <AuthLayout
       eyebrow="Sign in"
       title="Welcome back"
-      subtitle="Sign in to your MCSA account to open the dashboard."
+      subtitle="Sign in to your Portibilify account to open the dashboard."
       footer={
         <AuthSwitchLink
           prompt="Don't have an account?"

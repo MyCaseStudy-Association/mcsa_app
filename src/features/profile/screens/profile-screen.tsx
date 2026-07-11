@@ -24,8 +24,6 @@ const THEME_OPTIONS: { key: ThemePreference; label: string; icon: keyof typeof I
 
 const DETAIL_ROWS: { key: keyof UserProfile; icon: keyof typeof Ionicons.glyphMap; label: string }[] = [
   { key: 'phone', icon: 'call-outline', label: 'Phone' },
-  { key: 'organization', icon: 'business-outline', label: 'Organization' },
-  { key: 'role', icon: 'briefcase-outline', label: 'Role' },
   { key: 'location', icon: 'location-outline', label: 'Location' },
 ];
 
@@ -67,8 +65,6 @@ export default function ProfileScreen() {
       }
       setProfile({
         ...EMPTY_PROFILE,
-        name: user?.name ?? '',
-        email: user?.email ?? '',
         ...(stored ?? {}),
       });
     });
@@ -90,9 +86,8 @@ export default function ProfileScreen() {
     setIsLoggingOut(false);
   }
 
-  const displayName = profile.name || 'MCSA member';
-  const email = profile.email || '—';
-  const subtitle = [profile.role, profile.organization].filter(Boolean).join(' · ');
+  const displayName = user?.name || 'Portibilify member';
+  const email = user?.email || '—';
   const filledCount = DETAIL_ROWS.filter((row) => profile[row.key]).length;
   const activeTheme = THEME_OPTIONS.find((option) => option.key === preference) ?? THEME_OPTIONS[0];
 
@@ -134,14 +129,14 @@ export default function ProfileScreen() {
           end={AuthGradient.end}
           style={styles.avatar}>
           <ThemedText type="subtitle" style={styles.avatarText}>
-            {getInitials(profile.name || profile.email || 'M')}
+            {getInitials(user?.name || user?.email || 'M')}
           </ThemedText>
         </LinearGradient>
         <View style={styles.profileCopy}>
           <View style={styles.memberBadge}>
             <View style={styles.memberDot} />
             <ThemedText type="smallBold" style={styles.memberBadgeText}>
-              MCSA member
+              Portibilify member
             </ThemedText>
           </View>
           <ThemedText type="smallBold" style={styles.profileName} numberOfLines={1}>
@@ -150,11 +145,6 @@ export default function ProfileScreen() {
           <ThemedText selectable type="small" style={styles.profileEmail} numberOfLines={1}>
             {email}
           </ThemedText>
-          {subtitle ? (
-            <ThemedText type="small" style={styles.profileRole} numberOfLines={1}>
-              {subtitle}
-            </ThemedText>
-          ) : null}
         </View>
       </GlassPanel>
 
@@ -398,7 +388,7 @@ export default function ProfileScreen() {
         icon="log-out-outline"
         destructive
         title="Log out?"
-        message="You'll need to sign in again to access your MCSA dashboard."
+        message="You'll need to sign in again to access your Portibilify dashboard."
         confirmLabel="Log out"
         loading={isLoggingOut}
         onConfirm={() => {
@@ -554,11 +544,6 @@ function createStyles(c: AppPalette, scheme: 'light' | 'dark') {
   profileEmail: {
     color: c.glassMuted,
   },
-  profileRole: {
-    color: c.glassMuted,
-    fontSize: 12,
-  },
-
   // Wallet
   walletCard: {
     borderRadius: 26,

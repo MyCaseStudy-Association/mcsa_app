@@ -1,23 +1,15 @@
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
-const PROFILE_KEY = 'mcsa.profile';
+const PROFILE_KEY = 'portibilify.profile';
 
 export type UserProfile = {
-  name: string;
-  email: string;
   phone: string;
-  organization: string;
-  role: string;
   location: string;
 };
 
 export const EMPTY_PROFILE: UserProfile = {
-  name: '',
-  email: '',
   phone: '',
-  organization: '',
-  role: '',
   location: '',
 };
 
@@ -28,7 +20,13 @@ export async function getStoredProfile(): Promise<Partial<UserProfile> | null> {
   }
   try {
     const parsed = JSON.parse(raw) as Partial<UserProfile>;
-    return parsed && typeof parsed === 'object' ? parsed : null;
+    if (!parsed || typeof parsed !== 'object') {
+      return null;
+    }
+    return {
+      phone: typeof parsed.phone === 'string' ? parsed.phone : '',
+      location: typeof parsed.location === 'string' ? parsed.location : '',
+    };
   } catch {
     return null;
   }

@@ -1,16 +1,17 @@
 {
   "expo": {
-    "name": "MCSA",
-    "slug": "MCSA",
+    "name": "Portibilify",
+    "slug": "portibilify",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icons/app-icon.png",
-    "scheme": "mcsa",
+    "scheme": "portibilify",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/icons/app-icon.png"
     },
     "android": {
+      "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "backgroundColor": "#DFF9F6",
         "foregroundImage": "./assets/icons/adaptive-icon-foreground.png",

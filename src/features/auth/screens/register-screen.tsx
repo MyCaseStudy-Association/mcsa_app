@@ -74,7 +74,7 @@ export default function RegisterScreen() {
       title="Create your account"
       subtitle={
         <>
-          Join MCSA and unlock the power of data{' '}
+          Join Portibilify and unlock the power of data{' '}
           <ThemedText type="smallBold" style={{ color: colors.primaryTeal }}>
             monetization
           </ThemedText>

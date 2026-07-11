@@ -1,6 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { PropsWithChildren, ReactNode, useMemo } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/ui/themed-text';
@@ -64,37 +71,44 @@ export function AppScreen({
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'left', 'right']}>
-      {stickyHeader ? (
-        <View style={styles.headerBar}>
-          <View style={styles.headerInner}>{header}</View>
-        </View>
-      ) : null}
+      <KeyboardAvoidingView
+        behavior={process.env.EXPO_OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardArea}>
+        {stickyHeader ? (
+          <View style={styles.headerBar}>
+            <View style={styles.headerInner}>{header}</View>
+          </View>
+        ) : null}
 
-      <ScrollView
-        contentInsetAdjustmentBehavior="never"
-        showsVerticalScrollIndicator={false}
-        style={styles.scroll}
-        refreshControl={
-          onRefresh ? (
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={colors.primaryTeal}
-              colors={[colors.primaryTeal]}
-            />
-          ) : undefined
-        }
-        contentContainerStyle={styles.content}>
-        <View style={styles.container}>
-          {!stickyHeader ? header : null}
-          {children}
-        </View>
-      </ScrollView>
-      {footer ? (
-        <View style={[styles.footer, { paddingBottom: insets.bottom + Spacing.two }]}>
-          {footer}
-        </View>
-      ) : null}
+        <ScrollView
+          automaticallyAdjustKeyboardInsets
+          contentInsetAdjustmentBehavior="never"
+          keyboardDismissMode={process.env.EXPO_OS === 'ios' ? 'interactive' : 'on-drag'}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          style={styles.scroll}
+          refreshControl={
+            onRefresh ? (
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={colors.primaryTeal}
+                colors={[colors.primaryTeal]}
+              />
+            ) : undefined
+          }
+          contentContainerStyle={styles.content}>
+          <View style={styles.container}>
+            {!stickyHeader ? header : null}
+            {children}
+          </View>
+        </ScrollView>
+        {footer ? (
+          <View style={[styles.footer, { paddingBottom: insets.bottom + Spacing.two }]}>
+            {footer}
+          </View>
+        ) : null}
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -103,6 +117,9 @@ function createStyles(c: AppPalette) {
   return StyleSheet.create({
     screen: {
       backgroundColor: c.screenBg,
+      flex: 1,
+    },
+    keyboardArea: {
       flex: 1,
     },
     headerBar: {

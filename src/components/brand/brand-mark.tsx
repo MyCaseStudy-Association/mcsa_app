@@ -12,9 +12,9 @@ export function BrandMark({ size = 56, style }: BrandMarkProps) {
   return (
     <Image
       accessibilityIgnoresInvertColors
-      accessibilityLabel="MCSA"
+      accessibilityLabel="Portibilify"
       contentFit="contain"
-      source={AppAssets.mcsaMark}
+      source={AppAssets.portibilifyMark}
       style={[styles.image, { height: size, width: size }, style]}
     />
   );

@@ -35,7 +35,7 @@ export function AnimatedSplashOverlay() {
     },
   });
 
-  const image = <Image contentFit="contain" style={styles.image} source={AppAssets.mcsaMark} />;
+  const image = <Image contentFit="contain" style={styles.image} source={AppAssets.portibilifyMark} />;
 
   return animate ? (
     <Animated.View
@@ -93,7 +93,7 @@ export function AnimatedIcon() {
     <View style={styles.iconContainer}>
       <Animated.View entering={keyframe.duration(DURATION)} style={styles.background} />
       <Animated.View style={styles.imageContainer} entering={logoKeyframe.duration(DURATION)}>
-        <Image contentFit="contain" style={styles.image} source={AppAssets.mcsaMark} />
+        <Image contentFit="contain" style={styles.image} source={AppAssets.portibilifyMark} />
       </Animated.View>
     </View>
   );

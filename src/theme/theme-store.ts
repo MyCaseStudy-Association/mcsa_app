@@ -1,7 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
-const THEME_KEY = 'mcsa.theme';
+const THEME_KEY = 'portibilify.theme';
 
 export type ThemePreference = 'system' | 'light' | 'dark';
 

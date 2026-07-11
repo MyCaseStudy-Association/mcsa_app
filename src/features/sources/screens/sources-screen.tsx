@@ -314,7 +314,7 @@ export default function SourcesScreen() {
       />
       <AppScreen
         title="Sources"
-        subtitle="Bring your conversations into MCSA securely."
+        subtitle="Bring your conversations into Portibilify securely."
         onBack={() => router.back()}
       >
         <View style={styles.stepSection}>

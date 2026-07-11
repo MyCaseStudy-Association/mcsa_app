@@ -13,7 +13,7 @@ const collections = [
   {
     icon: 'people-outline' as const,
     title: 'Member directory',
-    description: 'Browse and search every registered MCSA member.',
+    description: 'Browse and search every registered Portibilify member.',
   },
   {
     icon: 'briefcase-outline' as const,
@@ -40,7 +40,7 @@ export default function ExploreScreen() {
   return (
     <AppScreen
       title="Explore"
-      subtitle="Discover everything MCSA has to offer."
+      subtitle="Discover everything Portibilify has to offer."
       refreshing={refreshing}
       onRefresh={onRefresh}>
       <View style={styles.grid}>
