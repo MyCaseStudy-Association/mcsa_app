@@ -58,12 +58,11 @@ export function SourceInfoModal({ source, onClose, onUpload }: SourceInfoModalPr
                     Export from {displayedSource.name}
                   </ThemedText>
                   <ThemedText type="small" style={styles.subtitle}>
-                    Takes a few minutes — {displayedSource.name} emails you the file.
+                    Takes a few minutes — {displayedSource.name} emails you.
                   </ThemedText>
                 </View>
               </View>
 
-              <View style={styles.divider} />
 
               <View style={styles.steps}>
                 {displayedSource.steps.map((step, index) => (

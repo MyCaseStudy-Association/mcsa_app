@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { PropsWithChildren, ReactNode, useMemo } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/ui/themed-text';
 import { AppPalette, MaxContentWidth, Spacing } from '@/theme/theme';
@@ -11,6 +11,7 @@ type AppScreenProps = PropsWithChildren<{
   title: string;
   subtitle?: string;
   headerRight?: ReactNode;
+  footer?: ReactNode;
   onBack?: () => void;
   showBrand?: boolean;
   stickyHeader?: boolean;
@@ -22,6 +23,7 @@ export function AppScreen({
   title,
   subtitle,
   headerRight,
+  footer,
   onBack,
   showBrand = true,
   stickyHeader = true,
@@ -29,6 +31,7 @@ export function AppScreen({
   onRefresh,
   children,
 }: AppScreenProps) {
+  const insets = useSafeAreaInsets();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const header = (
@@ -87,6 +90,11 @@ export function AppScreen({
           {children}
         </View>
       </ScrollView>
+      {footer ? (
+        <View style={[styles.footer, { paddingBottom: insets.bottom + Spacing.two }]}>
+          {footer}
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -112,6 +120,13 @@ function createStyles(c: AppPalette) {
     },
     scroll: {
       flex: 1,
+    },
+    footer: {
+      backgroundColor: c.screenBg,
+      borderTopColor: c.surfaceGlassBorder,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      paddingHorizontal: Spacing.three,
+      paddingTop: Spacing.three,
     },
     content: {
       flexGrow: 1,
