@@ -46,6 +46,7 @@ export default function SourcesScreen() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [viewing, setViewing] = useState<ChatSession | null>(null);
   const [processingInfoOpen, setProcessingInfoOpen] = useState(false);
+  const [processing, setProcessing] = useState(false);
 
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -119,19 +120,30 @@ export default function SourcesScreen() {
     setError("");
   }
 
-  function processSelectedPrompts() {
+  async function processSelectedPrompts() {
     if (!result) return;
 
-    const selectedSessions = result.sessions.filter((session) =>
-      selected.has(session.id),
-    );
-    const refinementResult = refineSelectedSessions(
-      selectedSessions,
-      user?.name,
-    );
-    setLatestRefinementResult(refinementResult);
-    setProcessingInfoOpen(false);
-    router.push("/refined-prompts");
+    setProcessing(true);
+    setError("");
+    await waitForNextPaint();
+
+    try {
+      const selectedSessions = result.sessions.filter((session) =>
+        selected.has(session.id),
+      );
+      const refinementResult = refineSelectedSessions(
+        selectedSessions,
+        user?.name,
+      );
+      setLatestRefinementResult(refinementResult);
+      setProcessingInfoOpen(false);
+      router.push("/refined-prompts");
+    } catch {
+      setError("Could not refine the selected prompts. Please try again.");
+      setProcessingInfoOpen(false);
+    } finally {
+      setProcessing(false);
+    }
   }
 
   // Review step — hides the source list once an export is loaded.
@@ -192,6 +204,8 @@ export default function SourcesScreen() {
               </ThemedText>
             </View>
           </View>
+
+          {error ? <AuthNotice message={error} /> : null}
 
           <View style={styles.result}>
             <View style={styles.resultHead}>
@@ -327,10 +341,13 @@ export default function SourcesScreen() {
 
           <ChatViewerModal session={viewing} onClose={() => setViewing(null)} />
           <ProcessingInfoModal
+            loading={processing}
             selectedCount={selectedCount}
             visible={processingInfoOpen}
             onClose={() => setProcessingInfoOpen(false)}
-            onConfirm={processSelectedPrompts}
+            onConfirm={() => {
+              void processSelectedPrompts();
+            }}
           />
         </AppScreen>
       </>
@@ -494,6 +511,7 @@ export default function SourcesScreen() {
               label={busy ? "Reading archive…" : "Choose export file"}
               icon="folder-open-outline"
               loading={busy}
+              loadingLabel="Reading archive…"
               disabled={busy}
               onPress={() => {
                 void pickAndImport();
@@ -629,6 +647,12 @@ export default function SourcesScreen() {
       </AppScreen>
     </>
   );
+}
+
+function waitForNextPaint() {
+  return new Promise<void>((resolve) => {
+    requestAnimationFrame(() => resolve());
+  });
 }
 
 function createStyles(c: AppPalette) {

@@ -10,6 +10,7 @@ type PrimaryButtonProps = {
   label: string;
   align?: 'center' | 'left';
   loading?: boolean;
+  loadingLabel?: string;
   disabled?: boolean;
   icon?: keyof typeof Ionicons.glyphMap;
   onPress: () => void;
@@ -19,6 +20,7 @@ export function PrimaryButton({
   label,
   align = 'center',
   loading = false,
+  loadingLabel,
   disabled = false,
   icon,
   onPress,
@@ -40,7 +42,12 @@ export function PrimaryButton({
         pressed && !isBlocked && styles.pressed,
       ]}>
       {loading ? (
-        <ActivityIndicator color="#ffffff" />
+        <>
+          <ActivityIndicator color="#ffffff" size="small" />
+          <ThemedText type="smallBold" style={styles.loadingLabel}>
+            {loadingLabel ?? label}
+          </ThemedText>
+        </>
       ) : (
         <>
           <ThemedText type="smallBold" style={styles.label}>
@@ -65,6 +72,7 @@ function createStyles(c: AppPalette) {
       borderCurve: 'continuous',
       borderRadius: 14,
       flexDirection: 'row',
+      gap: 10,
       justifyContent: 'center',
       minHeight: 56,
       paddingHorizontal: 20,
@@ -87,6 +95,11 @@ function createStyles(c: AppPalette) {
       color: '#ffffff',
       fontSize: 16,
       letterSpacing: 0.3,
+    },
+    loadingLabel: {
+      color: '#ffffff',
+      fontSize: 14,
+      letterSpacing: 0.2,
     },
     icon: {
       position: 'absolute',

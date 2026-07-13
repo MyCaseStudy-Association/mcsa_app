@@ -9,6 +9,7 @@ import { AppPalette, Spacing } from "@/theme/theme";
 import { useColors } from "@/theme/theme-provider";
 
 type ProcessingInfoModalProps = {
+  loading: boolean;
   selectedCount: number;
   visible: boolean;
   onClose: () => void;
@@ -23,6 +24,7 @@ const PROTECTED_DATA = [
 ];
 
 export function ProcessingInfoModal({
+  loading,
   selectedCount,
   visible,
   onClose,
@@ -32,7 +34,12 @@ export function ProcessingInfoModal({
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
-    <SmoothModal contentStyle={styles.sheet} visible={visible} onClose={onClose}>
+    <SmoothModal
+      contentStyle={styles.sheet}
+      dismissible={!loading}
+      visible={visible}
+      onClose={onClose}
+    >
       <View style={styles.grabber} />
       <View style={styles.header}>
         <View style={styles.iconWrap}>
@@ -72,10 +79,13 @@ export function ProcessingInfoModal({
         <Pressable
           accessibilityLabel="Close confirmation"
           accessibilityRole="button"
+          accessibilityState={{ disabled: loading }}
+          disabled={loading}
           hitSlop={6}
           onPress={onClose}
           style={({ pressed }) => [
             styles.closeButton,
+            loading && styles.disabled,
             pressed && styles.pressed,
           ]}
         >
@@ -84,8 +94,10 @@ export function ProcessingInfoModal({
         <View style={styles.continueButton}>
           <PrimaryButton
             align="left"
-            label="Continue"
+            label={loading ? "Processing…" : "Continue"}
             icon="arrow-forward"
+            loading={loading}
+            loadingLabel="Refining prompts…"
             onPress={onConfirm}
           />
         </View>
@@ -180,6 +192,9 @@ function createStyles(c: AppPalette) {
     },
     pressed: {
       opacity: 0.65,
+    },
+    disabled: {
+      opacity: 0.45,
     },
   });
 }

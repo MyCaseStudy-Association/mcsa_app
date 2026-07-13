@@ -22,6 +22,7 @@ export default function RefinedPromptsScreen() {
   const result = getLatestRefinementResult();
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [detailKind, setDetailKind] = useState<RefinementDetailKind | null>(null);
+  const [continuing, setContinuing] = useState(false);
   const activeSession =
     result?.sessions.find((session) => session.id === activeSessionId) ?? null;
 
@@ -60,25 +61,20 @@ export default function RefinedPromptsScreen() {
   return (
     <AppScreen
       title="Refined prompts"
-      subtitle={`${result.prompts.length} prompts ready to review`}
+      subtitle="Review your privacy-safe prompt collection."
       showBrand={false}
       onBack={() => router.back()}
-      footer={
-        <PrimaryButton
-          align="left"
-          icon="arrow-forward"
-          label="Continue"
-          onPress={() => router.replace("/(tabs)/home")}
-        />
-      }
     >
       <View style={styles.dashboardHeading}>
         <ThemedText type="smallBold" style={styles.dashboardTitle}>
           Privacy dashboard
         </ThemedText>
-        <ThemedText selectable type="small" style={styles.processedAt}>
-          {formatProcessedAt(result.processedAt)}
-        </ThemedText>
+        <View style={styles.processedPill}>
+          <Ionicons name="time-outline" size={12} color={colors.glassMuted} />
+          <ThemedText selectable type="small" style={styles.processedAt}>
+            {formatProcessedAt(result.processedAt)}
+          </ThemedText>
+        </View>
       </View>
 
       <View style={styles.summaryCard}>
@@ -87,26 +83,34 @@ export default function RefinedPromptsScreen() {
             <Ionicons
               name="shield-checkmark-outline"
               size={24}
-              color={colors.primaryTeal}
+              color={colors.heroText}
             />
           </View>
           <View style={styles.summaryCopy}>
             <ThemedText selectable type="smallBold" style={styles.summaryTitle}>
-              Privacy review complete
+              Your prompts are ready
             </ThemedText>
             <ThemedText selectable type="small" style={styles.summaryText}>
-              Identifiers were replaced with placeholders and sensitive prompts
-              were removed from the refined output.
+              Personal identifiers were replaced and sensitive prompts were
+              excluded before creating this collection.
             </ThemedText>
           </View>
         </View>
         <View style={styles.retentionHeader}>
-          <ThemedText selectable type="smallBold" style={styles.retentionLabel}>
-            Refined output retained
-          </ThemedText>
-          <ThemedText selectable type="smallBold" style={styles.retentionValue}>
-            {retentionRate}%
-          </ThemedText>
+          <View>
+            <ThemedText selectable type="smallBold" style={styles.retentionValue}>
+              {retentionRate}%
+            </ThemedText>
+            <ThemedText selectable type="small" style={styles.retentionLabel}>
+              of prompts retained
+            </ThemedText>
+          </View>
+          <View style={styles.localBadge}>
+            <Ionicons name="lock-closed" size={12} color={colors.heroText} />
+            <ThemedText type="smallBold" style={styles.localBadgeText}>
+              Local review
+            </ThemedText>
+          </View>
         </View>
         <View style={styles.progressTrack}>
           <View style={[styles.progressFill, { width: `${retentionRate}%` }]} />
@@ -116,7 +120,7 @@ export default function RefinedPromptsScreen() {
             {result.prompts.length} of {result.inputPromptCount} prompts retained
           </ThemedText>
           <ThemedText selectable type="small" style={styles.retentionNote}>
-            Local review only
+            {result.redactionCount} identifier changes
           </ThemedText>
         </View>
       </View>
@@ -161,6 +165,17 @@ export default function RefinedPromptsScreen() {
       </View>
 
       {result.excludedPrompts.length > 0 ? (
+        <View style={styles.sectionHeader}>
+          <ThemedText type="smallBold" style={styles.sectionTitle}>
+            Review details
+          </ThemedText>
+          <ThemedText type="small" style={styles.sectionHint}>
+            Tap to inspect
+          </ThemedText>
+        </View>
+      ) : null}
+
+      {result.excludedPrompts.length > 0 ? (
         <Pressable
           accessibilityLabel={`Review ${result.excludedPrompts.length} excluded sensitive prompts`}
           accessibilityRole="button"
@@ -170,11 +185,13 @@ export default function RefinedPromptsScreen() {
             pressed && styles.pressed,
           ]}
         >
-          <Ionicons
-            name="eye-off-outline"
-            size={20}
-            color={colors.primaryTeal}
-          />
+          <View style={styles.actionIcon}>
+            <Ionicons
+              name="eye-off-outline"
+              size={20}
+              color={colors.primaryTeal}
+            />
+          </View>
           <View style={styles.excludedCopy}>
             <ThemedText selectable type="smallBold" style={styles.excludedTitle}>
               {result.excludedPrompts.length} sensitive {result.excludedPrompts.length === 1 ? "prompt was" : "prompts were"} excluded
@@ -208,22 +225,30 @@ export default function RefinedPromptsScreen() {
               pressed && styles.pressed,
             ]}
           >
-            <View style={styles.sessionIcon}>
-              <Ionicons
-                name="chatbox-ellipses-outline"
-                size={17}
-                color={colors.primaryTeal}
-              />
+            <View style={styles.sessionIconWrap}>
+              <View style={styles.sessionIcon}>
+                <Ionicons
+                  name="chatbox-ellipses-outline"
+                  size={17}
+                  color={colors.primaryTeal}
+                />
+              </View>
+              {session.affected ? <View style={styles.affectedDot} /> : null}
             </View>
-            <ThemedText
-              selectable
-              ellipsizeMode="tail"
-              numberOfLines={1}
-              type="smallBold"
-              style={styles.sessionTitle}
-            >
-              {session.title}
-            </ThemedText>
+            <View style={styles.sessionCopy}>
+              <ThemedText
+                selectable
+                ellipsizeMode="tail"
+                numberOfLines={1}
+                type="smallBold"
+                style={styles.sessionTitle}
+              >
+                {session.title}
+              </ThemedText>
+              <ThemedText selectable type="small" style={styles.sessionMeta}>
+                {session.refinedPromptCount} refined · {session.excludedPromptCount} excluded
+              </ThemedText>
+            </View>
             <View style={styles.promptCountBadge}>
               <ThemedText
                 selectable
@@ -233,14 +258,6 @@ export default function RefinedPromptsScreen() {
                 {session.inputPromptCount}
               </ThemedText>
             </View>
-            {session.affected ? (
-              <View style={styles.affectedBadge}>
-                <View style={styles.affectedDot} />
-                <ThemedText type="smallBold" style={styles.affectedText}>
-                  Affected
-                </ThemedText>
-              </View>
-            ) : null}
             <Ionicons
               name="chevron-forward"
               size={17}
@@ -261,6 +278,37 @@ export default function RefinedPromptsScreen() {
             </ThemedText>
           </View>
         ) : null}
+      </View>
+
+      <View style={styles.continueCard}>
+        <View style={styles.continueCopyRow}>
+          <View style={styles.continueIcon}>
+            <Ionicons
+              name="checkmark-circle-outline"
+              size={22}
+              color={colors.primaryTeal}
+            />
+          </View>
+          <View style={styles.continueCopy}>
+            <ThemedText type="smallBold" style={styles.continueTitle}>
+              Review complete
+            </ThemedText>
+            <ThemedText type="small" style={styles.continueText}>
+              Continue when you are happy with the refined prompts.
+            </ThemedText>
+          </View>
+        </View>
+        <PrimaryButton
+          align="left"
+          icon="arrow-forward"
+          label="Continue"
+          loading={continuing}
+          loadingLabel="Opening Home…"
+          onPress={() => {
+            setContinuing(true);
+            requestAnimationFrame(() => router.replace("/(tabs)/home"));
+          }}
+        />
       </View>
 
       <RefinedSessionModal
@@ -344,20 +392,30 @@ function createStyles(c: AppPalette) {
       paddingHorizontal: Spacing.one,
     },
     dashboardTitle: { color: c.glassText, fontSize: 15 },
+    processedPill: {
+      alignItems: "center",
+      backgroundColor: c.noteSurface,
+      borderRadius: 999,
+      flexDirection: "row",
+      gap: Spacing.one,
+      paddingHorizontal: Spacing.two,
+      paddingVertical: Spacing.one,
+    },
     processedAt: { color: c.glassMuted, fontSize: 11 },
     summaryCard: {
-      backgroundColor: c.surface,
-      borderColor: c.cardBorder,
+      backgroundColor: c.heroTeal,
+      borderColor: c.glassCardBorder,
       borderCurve: "continuous",
-      borderRadius: 18,
+      borderRadius: 22,
       borderWidth: 1,
+      boxShadow: "0 12px 30px rgba(4, 55, 49, 0.18)",
       gap: Spacing.three,
-      padding: Spacing.three,
+      padding: Spacing.four,
     },
     summaryTop: { alignItems: "center", flexDirection: "row", gap: Spacing.three },
     summaryIcon: {
       alignItems: "center",
-      backgroundColor: c.lightTealBackground,
+      backgroundColor: c.glassField,
       borderCurve: "continuous",
       borderRadius: 14,
       height: 48,
@@ -365,44 +423,61 @@ function createStyles(c: AppPalette) {
       width: 48,
     },
     summaryCopy: { flex: 1, gap: Spacing.half },
-    summaryTitle: { color: c.glassText, fontSize: 16 },
-    summaryText: { color: c.glassMuted, fontSize: 12, lineHeight: 18 },
+    summaryTitle: { color: c.heroText, fontSize: 17 },
+    summaryText: { color: c.heroSubtle, fontSize: 12, lineHeight: 18 },
     retentionHeader: {
       alignItems: "center",
       flexDirection: "row",
       justifyContent: "space-between",
     },
-    retentionLabel: { color: c.glassText, fontSize: 12 },
-    retentionValue: { color: c.primaryTeal, fontSize: 13, fontVariant: ["tabular-nums"] },
+    retentionLabel: { color: c.heroSubtle, fontSize: 11 },
+    retentionValue: {
+      color: c.heroText,
+      fontSize: 30,
+      fontVariant: ["tabular-nums"],
+      lineHeight: 34,
+    },
+    localBadge: {
+      alignItems: "center",
+      backgroundColor: c.glassField,
+      borderRadius: 999,
+      flexDirection: "row",
+      gap: Spacing.one,
+      paddingHorizontal: Spacing.two,
+      paddingVertical: Spacing.one,
+    },
+    localBadgeText: { color: c.heroText, fontSize: 10 },
     progressTrack: {
-      backgroundColor: c.noteSurface,
+      backgroundColor: c.glassField,
       borderRadius: 999,
       height: 8,
       overflow: "hidden",
     },
-    progressFill: { backgroundColor: c.primaryTeal, borderRadius: 999, height: "100%" },
+    progressFill: { backgroundColor: c.accentTeal, borderRadius: 999, height: "100%" },
     retentionFooter: {
       flexDirection: "row",
       flexWrap: "wrap",
       gap: Spacing.two,
       justifyContent: "space-between",
     },
-    retentionNote: { color: c.glassMuted, fontSize: 10 },
+    retentionNote: { color: c.heroSubtle, fontSize: 10 },
     stats: {
       flexDirection: "row",
       flexWrap: "wrap",
       gap: Spacing.two,
     },
     statCard: {
-      backgroundColor: c.noteSurface,
-      borderColor: c.noteBorder,
+      backgroundColor: c.surface,
+      borderColor: c.cardBorder,
       borderCurve: "continuous",
-      borderRadius: 16,
+      borderRadius: 18,
       borderWidth: 1,
+      boxShadow: "0 4px 14px rgba(7, 58, 53, 0.06)",
       flexBasis: "46%",
       flexGrow: 1,
       gap: Spacing.two,
       minWidth: 136,
+      minHeight: 140,
       padding: Spacing.three,
     },
     statTop: {
@@ -428,15 +503,24 @@ function createStyles(c: AppPalette) {
     statLabel: { color: c.glassText, fontSize: 12 },
     statHint: { color: c.glassMuted, fontSize: 10, lineHeight: 14 },
     excludedCard: {
-      alignItems: "flex-start",
-      backgroundColor: c.noteSurface,
-      borderColor: c.noteBorder,
+      alignItems: "center",
+      backgroundColor: c.surface,
+      borderColor: c.cardBorder,
       borderCurve: "continuous",
-      borderRadius: 16,
+      borderRadius: 18,
       borderWidth: 1,
+      boxShadow: "0 4px 14px rgba(7, 58, 53, 0.05)",
       flexDirection: "row",
-      gap: Spacing.two,
+      gap: Spacing.three,
       padding: Spacing.three,
+    },
+    actionIcon: {
+      alignItems: "center",
+      backgroundColor: c.lightTealBackground,
+      borderRadius: 12,
+      height: 42,
+      justifyContent: "center",
+      width: 42,
     },
     excludedCopy: { flex: 1, gap: Spacing.half },
     excludedTitle: { color: c.glassText, fontSize: 13 },
@@ -448,27 +532,30 @@ function createStyles(c: AppPalette) {
       paddingHorizontal: Spacing.one,
     },
     sectionTitle: { color: c.glassText, fontSize: 15 },
+    sectionHint: { color: c.glassMuted, fontSize: 11 },
     ruleset: { color: c.glassMuted, fontSize: 11 },
     sessionList: {
       backgroundColor: c.surface,
       borderColor: c.fieldBorder,
       borderCurve: "continuous",
-      borderRadius: 18,
+      borderRadius: 20,
       borderWidth: 1,
-      gap: Spacing.one,
+      gap: Spacing.two,
       overflow: "hidden",
-      padding: Spacing.one,
+      padding: Spacing.two,
     },
     sessionRow: {
       alignItems: "center",
       borderCurve: "continuous",
       borderRadius: 14,
+      backgroundColor: c.noteSurface,
       flexDirection: "row",
       gap: Spacing.two,
-      minHeight: 52,
-      paddingHorizontal: Spacing.two,
-      paddingVertical: Spacing.one,
+      minHeight: 62,
+      paddingHorizontal: Spacing.three,
+      paddingVertical: Spacing.two,
     },
+    sessionIconWrap: { position: "relative" },
     sessionIcon: {
       alignItems: "center",
       backgroundColor: c.lightTealBackground,
@@ -478,7 +565,9 @@ function createStyles(c: AppPalette) {
       justifyContent: "center",
       width: 34,
     },
-    sessionTitle: { color: c.glassText, flex: 1, fontSize: 13, minWidth: 0 },
+    sessionCopy: { flex: 1, gap: Spacing.half, minWidth: 0 },
+    sessionTitle: { color: c.glassText, fontSize: 13, minWidth: 0 },
+    sessionMeta: { color: c.glassMuted, fontSize: 10, lineHeight: 14 },
     promptCountBadge: {
       backgroundColor: c.noteSurface,
       borderRadius: 999,
@@ -492,22 +581,17 @@ function createStyles(c: AppPalette) {
       fontVariant: ["tabular-nums"],
       textAlign: "center",
     },
-    affectedBadge: {
-      alignItems: "center",
-      backgroundColor: c.lightTealBackground,
-      borderRadius: 999,
-      flexDirection: "row",
-      gap: Spacing.one,
-      paddingHorizontal: Spacing.two,
-      paddingVertical: Spacing.one,
-    },
     affectedDot: {
-      backgroundColor: c.primaryTeal,
+      backgroundColor: c.accentTeal,
+      borderColor: c.surface,
       borderRadius: 999,
-      height: 5,
-      width: 5,
+      borderWidth: 2,
+      height: 10,
+      position: "absolute",
+      right: -2,
+      top: -2,
+      width: 10,
     },
-    affectedText: { color: c.primaryTeal, fontSize: 9 },
     emptyCard: {
       alignItems: "center",
       backgroundColor: c.surface,
@@ -519,6 +603,32 @@ function createStyles(c: AppPalette) {
       padding: Spacing.five,
     },
     emptyTitle: { color: c.glassText, textAlign: "center" },
+    continueCard: {
+      backgroundColor: c.surface,
+      borderColor: c.cardBorder,
+      borderCurve: "continuous",
+      borderRadius: 20,
+      borderWidth: 1,
+      boxShadow: "0 6px 18px rgba(7, 58, 53, 0.08)",
+      gap: Spacing.three,
+      padding: Spacing.three,
+    },
+    continueCopyRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: Spacing.three,
+    },
+    continueIcon: {
+      alignItems: "center",
+      backgroundColor: c.lightTealBackground,
+      borderRadius: 12,
+      height: 42,
+      justifyContent: "center",
+      width: 42,
+    },
+    continueCopy: { flex: 1, gap: Spacing.half },
+    continueTitle: { color: c.glassText, fontSize: 14 },
+    continueText: { color: c.glassMuted, fontSize: 11, lineHeight: 16 },
     pressed: { opacity: 0.7 },
   });
 }

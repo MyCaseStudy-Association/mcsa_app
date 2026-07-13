@@ -28,6 +28,7 @@ type SmoothModalProps = PropsWithChildren<{
   placement?: 'bottom' | 'center' | 'full';
   contentStyle?: StyleProp<ViewStyle>;
   keyboardAvoiding?: boolean;
+  dismissible?: boolean;
 }>;
 
 const EXIT_DURATION = 180;
@@ -38,6 +39,7 @@ export function SmoothModal({
   placement = 'bottom',
   contentStyle,
   keyboardAvoiding = true,
+  dismissible = true,
   children,
 }: SmoothModalProps) {
   const { colors, scheme } = useAppTheme();
@@ -81,7 +83,7 @@ export function SmoothModal({
     }
   }, [mounted, progress, visible]);
 
-  const backdropStyle = useAnimatedStyle(() => ({
+  const backdropAnimationStyle = useAnimatedStyle(() => ({
     opacity: interpolate(progress.value, [0, 1], [0, 1]),
   }));
 
@@ -107,14 +109,16 @@ export function SmoothModal({
       ]}>
       <Animated.View
         pointerEvents="none"
-        style={[styles.backdrop, themedStyles.backdrop, backdropStyle]}
+        style={[styles.backdrop, themedStyles.backdrop, backdropAnimationStyle]}
       />
-      <Pressable
-        accessibilityLabel="Close modal"
-        accessibilityRole="button"
-        onPress={onClose}
-        style={StyleSheet.absoluteFill}
-      />
+      {dismissible ? (
+        <Pressable
+          accessibilityLabel="Close modal"
+          accessibilityRole="button"
+          onPress={onClose}
+          style={StyleSheet.absoluteFill}
+        />
+      ) : null}
       <Animated.View
         style={[
           styles.content,
@@ -134,7 +138,7 @@ export function SmoothModal({
   return (
     <Modal
       animationType="none"
-      onRequestClose={onClose}
+      onRequestClose={dismissible ? onClose : () => {}}
       statusBarTranslucent
       transparent
       visible={mounted}>
