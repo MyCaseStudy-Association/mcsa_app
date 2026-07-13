@@ -9,7 +9,9 @@ import { SmoothModal } from "@/components/ui/smooth-modal";
 import { ThemedText } from "@/components/ui/themed-text";
 import { AuthNotice } from "@/features/auth/components/auth-notice";
 import { PrimaryButton } from "@/features/auth/components/primary-button";
+import { useAuth } from "@/features/auth/providers/auth-provider";
 import { ChatViewerModal } from "@/features/sources/components/chat-viewer-modal";
+import { ProcessingInfoModal } from "@/features/sources/components/processing-info-modal";
 import { SourceInfoModal } from "@/features/sources/components/source-info-modal";
 import {
   CHAT_SOURCES,
@@ -22,11 +24,17 @@ import {
   importChatArchive,
   providerLabel,
 } from "@/features/sources/services/chat-import";
+import { refineSelectedSessions } from "@/features/sources/services/prompt-refinement";
+import {
+  clearLatestRefinementResult,
+  setLatestRefinementResult,
+} from "@/features/sources/services/refinement-result-store";
 import { AppPalette, Spacing } from "@/theme/theme";
 import { useColors } from "@/theme/theme-provider";
 
 export default function SourcesScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const [activeSource, setActiveSource] = useState<ChatSourceMeta | null>(null);
   const [selectedSource, setSelectedSource] = useState<ChatSourceMeta>(
     CHAT_SOURCES[0],
@@ -37,6 +45,7 @@ export default function SourcesScreen() {
   const [result, setResult] = useState<ImportResult | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [viewing, setViewing] = useState<ChatSession | null>(null);
+  const [processingInfoOpen, setProcessingInfoOpen] = useState(false);
 
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -69,7 +78,7 @@ export default function SourcesScreen() {
       setSelected(
         new Set(
           imported.sessions
-            .filter((session) => session.messageCount > 0)
+            .filter((session) => session.promptCount > 0)
             .map((session) => session.id),
         ),
       );
@@ -99,20 +108,36 @@ export default function SourcesScreen() {
 
   const selectedCount = result
     ? result.sessions.filter(
-        (session) => session.messageCount > 0 && selected.has(session.id),
+        (session) => session.promptCount > 0 && selected.has(session.id),
       ).length
     : selected.size;
 
   function resetImport() {
+    clearLatestRefinementResult();
     setResult(null);
     setSelected(new Set());
     setError("");
   }
 
+  function processSelectedPrompts() {
+    if (!result) return;
+
+    const selectedSessions = result.sessions.filter((session) =>
+      selected.has(session.id),
+    );
+    const refinementResult = refineSelectedSessions(
+      selectedSessions,
+      user?.name,
+    );
+    setLatestRefinementResult(refinementResult);
+    setProcessingInfoOpen(false);
+    router.push("/refined-prompts");
+  }
+
   // Review step — hides the source list once an export is loaded.
   if (result) {
     const selectableSessions = result.sessions.filter(
-      (session) => session.messageCount > 0,
+      (session) => session.promptCount > 0,
     );
     const allSelected =
       selectableSessions.length > 0 && selectedCount === selectableSessions.length;
@@ -126,20 +151,25 @@ export default function SourcesScreen() {
           onBack={resetImport}
           footer={
             <View style={styles.resultFooter}>
-              <View style={styles.footerCount}>
-                <ThemedText type="smallBold" style={styles.footerCountValue}>
-                  {selectedCount}
-                </ThemedText>
-                <ThemedText type="small" style={styles.footerCountLabel}>
-                  selected
-                </ThemedText>
-              </View>
+              <Pressable
+                accessibilityLabel="Close chat selection"
+                accessibilityRole="button"
+                hitSlop={6}
+                onPress={resetImport}
+                style={({ pressed }) => [
+                  styles.footerCloseButton,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <Ionicons name="close" size={24} color={colors.primaryTeal} />
+              </Pressable>
               <View style={styles.footerButton}>
                 <PrimaryButton
-                  label="Continue"
-                  icon="arrow-forward"
+                  align="left"
+                  label={`Process (${selectedCount})`}
+                  icon="shield-checkmark-outline"
                   disabled={selectedCount === 0}
-                  onPress={() => {}}
+                  onPress={() => setProcessingInfoOpen(true)}
                 />
               </View>
             </View>
@@ -207,7 +237,7 @@ export default function SourcesScreen() {
 
             <View style={styles.chatList}>
             {selectableSessions.map((session) => {
-              const hasChat = session.messageCount > 0;
+              const hasChat = session.promptCount > 0;
               const isSelected = hasChat && selected.has(session.id);
               return (
                 <View
@@ -219,7 +249,7 @@ export default function SourcesScreen() {
                 >
                   <Pressable
                     accessibilityLabel={
-                      `${session.title}, ${session.messageCount} messages`
+                      `${session.title}, ${session.promptCount} user prompts`
                     }
                     accessibilityRole="checkbox"
                     accessibilityState={{ checked: isSelected, disabled: !hasChat }}
@@ -239,11 +269,11 @@ export default function SourcesScreen() {
                     >
                       <ThemedText
                         style={[
-                          styles.messageCount,
-                          isSelected && styles.messageCountSelected,
+                          styles.promptCount,
+                          isSelected && styles.promptCountSelected,
                         ]}
                       >
-                        {session.messageCount}
+                        {session.promptCount}
                       </ThemedText>
                     </View>
                     <View style={styles.chatCopy}>
@@ -296,6 +326,12 @@ export default function SourcesScreen() {
           </View>
 
           <ChatViewerModal session={viewing} onClose={() => setViewing(null)} />
+          <ProcessingInfoModal
+            selectedCount={selectedCount}
+            visible={processingInfoOpen}
+            onClose={() => setProcessingInfoOpen(false)}
+            onConfirm={processSelectedPrompts}
+          />
         </AppScreen>
       </>
     );
@@ -500,12 +536,12 @@ export default function SourcesScreen() {
             />
           </View>
           <View style={styles.privacyCopy}>
-            <ThemedText type="smallBold" style={styles.privacyTitle}>
-              Private by design
+            <ThemedText selectable type="smallBold" style={styles.privacyTitle}>
+              We don&apos;t collect your personal data
             </ThemedText>
-            <ThemedText type="small" style={styles.privacyText}>
-              Your archive is processed on this device before you choose any
-              chats.
+            <ThemedText selectable type="small" style={styles.privacyText}>
+              Names, emails, phone numbers, addresses, and locations are
+              filtered before processing. Your archive stays on this device.
             </ThemedText>
           </View>
         </View>
@@ -900,13 +936,17 @@ function createStyles(c: AppPalette) {
       paddingBottom: Spacing.two,
       width: "100%",
     },
-    footerCount: { alignItems: "center", minWidth: 54 },
-    footerCountValue: {
-      color: c.glassText,
-      fontSize: 18,
-      fontVariant: ["tabular-nums"],
+    footerCloseButton: {
+      alignItems: "center",
+      backgroundColor: c.noteSurface,
+      borderColor: c.noteBorder,
+      borderCurve: "continuous",
+      borderRadius: 14,
+      borderWidth: 1,
+      height: 56,
+      justifyContent: "center",
+      width: 56,
     },
-    footerCountLabel: { color: c.glassMuted, fontSize: 11 },
     footerButton: { flex: 1 },
     resultTitleGroup: {
       alignItems: "center",
@@ -1000,14 +1040,14 @@ function createStyles(c: AppPalette) {
       borderColor: c.fieldBorder,
       opacity: 0.55,
     },
-    messageCount: {
+    promptCount: {
       color: c.glassMuted,
       fontSize: 10,
       fontVariant: ["tabular-nums"],
       fontWeight: "800",
       lineHeight: 13,
     },
-    messageCountSelected: {
+    promptCountSelected: {
       color: "#ffffff",
     },
     chatCopy: {

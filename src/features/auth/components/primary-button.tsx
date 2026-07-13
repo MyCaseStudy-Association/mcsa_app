@@ -8,6 +8,7 @@ import { useColors } from '@/theme/theme-provider';
 
 type PrimaryButtonProps = {
   label: string;
+  align?: 'center' | 'left';
   loading?: boolean;
   disabled?: boolean;
   icon?: keyof typeof Ionicons.glyphMap;
@@ -16,6 +17,7 @@ type PrimaryButtonProps = {
 
 export function PrimaryButton({
   label,
+  align = 'center',
   loading = false,
   disabled = false,
   icon,
@@ -33,6 +35,7 @@ export function PrimaryButton({
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
+        align === 'left' && styles.buttonLeft,
         isBlocked && styles.disabled,
         pressed && !isBlocked && styles.pressed,
       ]}>
@@ -72,6 +75,9 @@ function createStyles(c: AppPalette) {
     },
     disabled: {
       opacity: 0.55,
+    },
+    buttonLeft: {
+      justifyContent: 'flex-start',
     },
     pressed: {
       opacity: 0.88,

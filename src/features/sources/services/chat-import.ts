@@ -15,7 +15,7 @@ export type ChatSession = {
   id: string;
   title: string;
   provider: ChatProvider;
-  messageCount: number;
+  promptCount: number;
   preview: string;
   messages: ChatMessage[];
   createdAt?: number;
@@ -222,6 +222,7 @@ function mapSession(
   index: number
 ): ChatSession | null {
   const messages = extractMessages(conversation, provider);
+  const userMessages = messages.filter((message) => message.role === 'user');
   const explicitTitle = firstString([
     conversation.title,
     conversation.name,
@@ -232,7 +233,7 @@ function mapSession(
   const createdAt = firstNumber([conversation.create_time, conversation.created_at, conversation.createdAt]);
 
   const id = firstString([conversation.id, conversation.uuid, conversation.conversation_id]) ?? `chat-${index}`;
-  const firstMessage = messages.find((message) => message.text.length > 0)?.text ?? '';
+  const firstMessage = userMessages.find((message) => message.text.length > 0)?.text ?? '';
 
   // Fall back to the first message when the export carries no title (e.g. Grok).
   const title = explicitTitle ?? deriveTitle(firstMessage) ?? `Untitled chat ${index + 1}`;
@@ -241,7 +242,7 @@ function mapSession(
     id,
     provider,
     title,
-    messageCount: messages.length,
+    promptCount: userMessages.length,
     preview: firstMessage.slice(0, 120),
     messages,
     createdAt,

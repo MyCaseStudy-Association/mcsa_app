@@ -5,39 +5,45 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { SmoothModal } from "@/components/ui/smooth-modal";
 import { ThemedText } from "@/components/ui/themed-text";
-import {
-  cleanMessageForDisplay,
-  FormattedMessage,
-} from "@/features/sources/components/formatted-message";
-import { ChatSession } from "@/features/sources/services/chat-import";
+import { FormattedMessage } from "@/features/sources/components/formatted-message";
+import type {
+  RefinedPrompt,
+  RefinedSessionSummary,
+} from "@/features/sources/services/prompt-refinement";
 import { AppPalette, Spacing } from "@/theme/theme";
 import { useColors } from "@/theme/theme-provider";
 
-type ChatViewerModalProps = {
-  session: ChatSession | null;
+type RefinedSessionModalProps = {
+  session: RefinedSessionSummary | null;
+  prompts: RefinedPrompt[];
   onClose: () => void;
 };
 
 const COLLAPSED_PROMPT_LENGTH = 160;
 
-export function ChatViewerModal({ session, onClose }: ChatViewerModalProps) {
+export function RefinedSessionModal({
+  session,
+  prompts,
+  onClose,
+}: RefinedSessionModalProps) {
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [displayedSession, setDisplayedSession] = useState(session);
-  const [expandedPrompts, setExpandedPrompts] = useState<Set<number>>(
+  const [expandedPromptIds, setExpandedPromptIds] = useState<Set<string>>(
     new Set(),
   );
-  const userPrompts =
-    displayedSession?.messages.filter((message) => message.role === "user") ??
-    [];
 
   useEffect(() => {
     if (session) {
       setDisplayedSession(session);
-      setExpandedPrompts(new Set());
+      setExpandedPromptIds(new Set());
     }
   }, [session]);
+
+  const sessionPrompts = displayedSession
+    ? prompts.filter((prompt) => prompt.sessionId === displayedSession.id)
+    : [];
 
   return (
     <SmoothModal
@@ -48,7 +54,7 @@ export function ChatViewerModal({ session, onClose }: ChatViewerModalProps) {
     >
       <View style={styles.header}>
         <Pressable
-          accessibilityLabel="Back to chat selection"
+          accessibilityLabel="Back to refined sessions"
           accessibilityRole="button"
           hitSlop={8}
           onPress={onClose}
@@ -66,34 +72,45 @@ export function ChatViewerModal({ session, onClose }: ChatViewerModalProps) {
             type="title"
             style={styles.title}
           >
-            {displayedSession?.title ?? "Chat"}
+            {displayedSession?.title ?? "Refined chat"}
           </ThemedText>
           <ThemedText type="small" style={styles.subtitle}>
-            {displayedSession?.promptCount ?? 0} user prompts
+            {displayedSession?.refinedPromptCount ?? 0} refined · {displayedSession?.excludedPromptCount ?? 0} excluded
           </ThemedText>
         </View>
       </View>
 
       <ScrollView
         contentContainerStyle={[
-          styles.thread,
+          styles.content,
           { paddingBottom: insets.bottom + Spacing.five },
         ]}
         contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
       >
-        {userPrompts.map((message, index) => {
-          const displayText = cleanMessageForDisplay(message.text);
+        {(displayedSession?.excludedPromptCount ?? 0) > 0 ? (
+          <View style={styles.statusRow}>
+            <View style={styles.excludedBadge}>
+              <Ionicons
+                name="eye-off-outline"
+                size={14}
+                color={colors.primaryTeal}
+              />
+              <ThemedText selectable type="smallBold" style={styles.excludedText}>
+                {displayedSession?.excludedPromptCount} excluded
+              </ThemedText>
+            </View>
+          </View>
+        ) : null}
+
+        {sessionPrompts.map((prompt, index) => {
           const canExpand =
-            displayText.length > COLLAPSED_PROMPT_LENGTH ||
-            displayText.split("\n").length > 4;
-          const isExpanded = expandedPrompts.has(index);
+            prompt.refinedText.length > COLLAPSED_PROMPT_LENGTH ||
+            prompt.refinedText.split("\n").length > 4;
+          const isExpanded = expandedPromptIds.has(prompt.id);
+
           return (
-            <View
-              key={`${index}-${message.role}`}
-              accessibilityLabel={`Prompt ${index + 1}`}
-              style={styles.promptCard}
-            >
+            <View key={prompt.id} style={styles.promptCard}>
               {canExpand && !isExpanded ? (
                 <View style={styles.promptPreviewWrap}>
                   <ThemedText
@@ -102,14 +119,14 @@ export function ChatViewerModal({ session, onClose }: ChatViewerModalProps) {
                     selectable
                     style={styles.promptPreview}
                   >
-                    {displayText}
+                    {prompt.refinedText}
                   </ThemedText>
                   <ThemedText
-                    accessibilityLabel={`Expand prompt ${index + 1}`}
+                    accessibilityLabel={`Expand refined prompt ${index + 1}`}
                     accessibilityRole="button"
                     onPress={() =>
-                      setExpandedPrompts((current) =>
-                        toggleExpanded(current, index),
+                      setExpandedPromptIds((current) =>
+                        toggleExpanded(current, prompt.id),
                       )
                     }
                     style={[styles.moreLabel, styles.moreOverlay]}
@@ -118,16 +135,17 @@ export function ChatViewerModal({ session, onClose }: ChatViewerModalProps) {
                   </ThemedText>
                 </View>
               ) : (
-                <FormattedMessage text={displayText} />
+                <FormattedMessage text={prompt.refinedText} />
               )}
+
               {canExpand && isExpanded ? (
                 <ThemedText
-                  accessibilityLabel={`Collapse prompt ${index + 1}`}
+                  accessibilityLabel={`Collapse refined prompt ${index + 1}`}
                   accessibilityRole="button"
-                  accessibilityState={{ expanded: isExpanded }}
+                  accessibilityState={{ expanded: true }}
                   onPress={() =>
-                    setExpandedPrompts((current) =>
-                      toggleExpanded(current, index),
+                    setExpandedPromptIds((current) =>
+                      toggleExpanded(current, prompt.id),
                     )
                   }
                   style={styles.moreLabel}
@@ -136,33 +154,49 @@ export function ChatViewerModal({ session, onClose }: ChatViewerModalProps) {
                   Show less
                 </ThemedText>
               ) : null}
+
+              {prompt.redactionTypes.length > 0 ? (
+                <View style={styles.tags}>
+                  {prompt.redactionTypes.map((type) => (
+                    <View key={type} style={styles.tag}>
+                      <ThemedText selectable type="smallBold" style={styles.tagText}>
+                        [{type}]
+                      </ThemedText>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
             </View>
           );
         })}
 
-        {displayedSession && userPrompts.length === 0 ? (
-          <ThemedText type="small" style={styles.empty}>
-            This chat has no readable user prompts.
-          </ThemedText>
+        {displayedSession && sessionPrompts.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <Ionicons
+              name="eye-off-outline"
+              size={28}
+              color={colors.primaryTeal}
+            />
+            <ThemedText selectable type="smallBold" style={styles.emptyText}>
+              No prompts from this chat remain after refinement.
+            </ThemedText>
+          </View>
         ) : null}
       </ScrollView>
     </SmoothModal>
   );
 }
 
-function toggleExpanded(current: Set<number>, index: number) {
+function toggleExpanded(current: Set<string>, id: string) {
   const next = new Set(current);
-  if (next.has(index)) next.delete(index);
-  else next.add(index);
+  if (next.has(id)) next.delete(id);
+  else next.add(id);
   return next;
 }
 
 function createStyles(c: AppPalette) {
   return StyleSheet.create({
-    screen: {
-      backgroundColor: c.screenBg,
-      flex: 1,
-    },
+    screen: { backgroundColor: c.screenBg, flex: 1 },
     header: {
       alignItems: "center",
       backgroundColor: c.screenBg,
@@ -175,21 +209,39 @@ function createStyles(c: AppPalette) {
       paddingTop: Spacing.three,
     },
     backButton: { alignSelf: "center", flexShrink: 0 },
-    headerCopy: { flex: 1, gap: Spacing.one, minWidth: 0 },
+    headerCopy: { flex: 1, gap: Spacing.half, minWidth: 0 },
     title: {
       color: c.glassText,
       flexShrink: 1,
-      fontSize: 26,
+      fontSize: 24,
       fontWeight: "700",
-      lineHeight: 32,
+      lineHeight: 30,
       width: "100%",
     },
-    subtitle: { color: c.glassMuted },
-    thread: {
+    subtitle: { color: c.glassMuted, fontSize: 12 },
+    content: {
       gap: Spacing.three,
       paddingHorizontal: Spacing.three,
       paddingTop: Spacing.four,
     },
+    statusRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: Spacing.two,
+      flexWrap: "wrap",
+    },
+    excludedBadge: {
+      alignItems: "center",
+      backgroundColor: c.noteSurface,
+      borderColor: c.noteBorder,
+      borderRadius: 999,
+      borderWidth: 1,
+      flexDirection: "row",
+      gap: Spacing.one,
+      paddingHorizontal: Spacing.two,
+      paddingVertical: Spacing.one,
+    },
+    excludedText: { color: c.primaryTeal, fontSize: 10 },
     promptCard: {
       backgroundColor: c.modalSurface,
       borderColor: c.cardBorder,
@@ -198,7 +250,6 @@ function createStyles(c: AppPalette) {
       borderWidth: 1,
       gap: Spacing.three,
       padding: Spacing.three,
-      width: "100%",
     },
     promptPreview: {
       color: c.glassText,
@@ -215,34 +266,25 @@ function createStyles(c: AppPalette) {
       position: "absolute",
       right: 0,
     },
-    overview: {
-      alignItems: "center",
-      backgroundColor: c.noteSurface,
-      borderColor: c.noteBorder,
-      borderCurve: "continuous",
-      borderRadius: 16,
-      borderWidth: 1,
-      flexDirection: "row",
-      gap: Spacing.three,
-      padding: Spacing.three,
-    },
-    overviewIcon: {
-      alignItems: "center",
+    tags: { flexDirection: "row", flexWrap: "wrap", gap: Spacing.one },
+    tag: {
       backgroundColor: c.lightTealBackground,
-      borderRadius: 12,
-      height: 40,
-      justifyContent: "center",
-      width: 40,
+      borderRadius: 999,
+      paddingHorizontal: Spacing.two,
+      paddingVertical: Spacing.one,
     },
-    overviewCopy: { flex: 1, gap: Spacing.half },
-    overviewTitle: { color: c.glassText },
-    overviewText: { color: c.glassMuted, fontSize: 12, lineHeight: 17 },
-    empty: {
-      color: c.glassMuted,
-      textAlign: "center",
+    tagText: { color: c.primaryTeal, fontSize: 10 },
+    emptyCard: {
+      alignItems: "center",
+      backgroundColor: c.surface,
+      borderColor: c.cardBorder,
+      borderCurve: "continuous",
+      borderRadius: 18,
+      borderWidth: 1,
+      gap: Spacing.three,
+      padding: Spacing.five,
     },
-    pressed: {
-      opacity: 0.7,
-    },
+    emptyText: { color: c.glassText, textAlign: "center" },
+    pressed: { opacity: 0.7 },
   });
 }

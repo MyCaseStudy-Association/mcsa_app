@@ -17,6 +17,7 @@ function RootStack() {
         <Stack.Screen name="index" />
         <Stack.Screen name="register" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="refined-prompts" options={{ animation: 'slide_from_right' }} />
       </Stack>
       <StatusBar backgroundColor={colors.screenBg} style={colors.statusBarStyle} />
     </>
