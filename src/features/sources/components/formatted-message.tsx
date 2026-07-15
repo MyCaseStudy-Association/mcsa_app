@@ -1,5 +1,5 @@
 import { Fragment, useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/ui/themed-text';
 import { AppPalette, Spacing } from '@/theme/theme';
@@ -42,9 +42,15 @@ export function FormattedMessage({ text, inverted = false }: { text: string; inv
         if (block.kind === 'code') {
           return (
             <View key={index} style={[styles.codeBlock, inverted && styles.invertedCodeBlock]}>
-              <ThemedText type="code" selectable style={[styles.code, textColor]}>
-                {block.content}
-              </ThemedText>
+              <ScrollView
+                contentContainerStyle={styles.codeScrollContent}
+                horizontal
+                nestedScrollEnabled
+                showsHorizontalScrollIndicator>
+                <ThemedText type="code" selectable style={[styles.code, textColor]}>
+                  {block.content}
+                </ThemedText>
+              </ScrollView>
             </View>
           );
         }
@@ -179,13 +185,19 @@ const stylesBase = StyleSheet.create({
 
 function createStyles(c: AppPalette) {
   return StyleSheet.create({
-    content: { gap: Spacing.two },
+    content: { gap: Spacing.two, maxWidth: '100%', minWidth: 0, width: '100%' },
     text: { color: c.glassText },
     invertedText: { color: '#ffffff' },
     heading: { fontSize: 16, fontWeight: '800', lineHeight: 23, paddingTop: Spacing.one },
-    listRow: { alignItems: 'flex-start', flexDirection: 'row', gap: Spacing.two },
+    listRow: {
+      alignItems: 'flex-start',
+      flexDirection: 'row',
+      gap: Spacing.two,
+      maxWidth: '100%',
+      minWidth: 0,
+    },
     marker: { fontSize: 15, fontWeight: '800', lineHeight: 23, minWidth: 20, textAlign: 'right' },
-    listCopy: { flex: 1 },
+    listCopy: { flex: 1, minWidth: 0 },
     quote: {
       borderLeftColor: c.cardBorder,
       borderLeftWidth: 3,
@@ -197,8 +209,12 @@ function createStyles(c: AppPalette) {
       borderCurve: 'continuous',
       borderRadius: 12,
       borderWidth: 1,
+      maxWidth: '100%',
+      minWidth: 0,
+      overflow: 'hidden',
       padding: Spacing.three,
     },
+    codeScrollContent: { minWidth: '100%' },
     invertedCodeBlock: { backgroundColor: 'rgba(0, 0, 0, 0.14)', borderColor: 'rgba(255,255,255,0.22)' },
     code: { fontSize: 12, fontWeight: '400', lineHeight: 18 },
   });

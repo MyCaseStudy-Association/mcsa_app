@@ -46,6 +46,9 @@ export function SmoothModal({
   const themedStyles = useMemo(() => createThemedStyles(colors, scheme), [colors, scheme]);
   const [mounted, setMounted] = useState(visible);
   const progress = useSharedValue(0);
+  // Springs can settle fractionally below 1 (leaving the modal translucent),
+  // so opacity runs on a plain timing curve while the spring drives movement.
+  const fade = useSharedValue(0);
 
   useEffect(() => {
     if (visible) {
@@ -54,6 +57,11 @@ export function SmoothModal({
     }
 
     if (mounted) {
+      fade.value = withTiming(0, {
+        duration: EXIT_DURATION,
+        easing: Easing.in(Easing.cubic),
+        reduceMotion: ReduceMotion.System,
+      });
       progress.value = withTiming(
         0,
         {
@@ -68,11 +76,17 @@ export function SmoothModal({
         },
       );
     }
-  }, [mounted, progress, visible]);
+  }, [fade, mounted, progress, visible]);
 
   useEffect(() => {
     if (mounted && visible) {
       progress.value = 0;
+      fade.value = 0;
+      fade.value = withTiming(1, {
+        duration: 220,
+        easing: Easing.out(Easing.cubic),
+        reduceMotion: ReduceMotion.System,
+      });
       progress.value = withSpring(1, {
         damping: 22,
         stiffness: 260,
@@ -81,14 +95,14 @@ export function SmoothModal({
         reduceMotion: ReduceMotion.System,
       });
     }
-  }, [mounted, progress, visible]);
+  }, [fade, mounted, progress, visible]);
 
   const backdropAnimationStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(progress.value, [0, 1], [0, 1]),
+    opacity: fade.value,
   }));
 
   const contentAnimationStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(progress.value, [0, 0.35, 1], [0, 0.85, 1]),
+    opacity: interpolate(fade.value, [0, 0.35, 1], [0, 0.85, 1]),
     transform:
       placement === 'bottom'
         ? [{ translateY: interpolate(progress.value, [0, 1], [72, 0]) }]

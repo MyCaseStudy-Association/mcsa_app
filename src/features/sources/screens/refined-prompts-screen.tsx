@@ -47,37 +47,34 @@ export default function RefinedPromptsView({
       </View>
 
       <View style={styles.summaryCard}>
-        <View style={styles.summaryTop}>
-          <View style={styles.summaryIcon}>
-            <Ionicons
-              name="shield-checkmark-outline"
-              size={24}
-              color={colors.heroText}
-            />
+        <View style={styles.summaryHeader}>
+          <View style={styles.summaryStatus}>
+            <View style={styles.summaryIcon}>
+              <Ionicons
+                name="shield-checkmark-outline"
+                size={17}
+                color={colors.primaryTeal}
+              />
+            </View>
+            <View style={styles.summaryCopy}>
+              <ThemedText
+                selectable
+                type="smallBold"
+                style={styles.summaryTitle}
+              >
+                Prompts ready
+              </ThemedText>
+              <ThemedText selectable type="small" style={styles.summaryText}>
+                Identifiers were replaced and sensitive prompts excluded.
+              </ThemedText>
+            </View>
           </View>
-          <View style={styles.summaryCopy}>
-            <ThemedText selectable type="smallBold" style={styles.summaryTitle}>
-              Your prompts are ready
-            </ThemedText>
-            <ThemedText selectable type="small" style={styles.summaryText}>
-              Personal identifiers were replaced and sensitive prompts were
-              excluded before creating this collection.
-            </ThemedText>
-          </View>
-        </View>
-        <View style={styles.retentionHeader}>
-          <View>
+          <View style={styles.retentionMetric}>
             <ThemedText selectable type="smallBold" style={styles.retentionValue}>
               {retentionRate}%
             </ThemedText>
             <ThemedText selectable type="small" style={styles.retentionLabel}>
-              of prompts retained
-            </ThemedText>
-          </View>
-          <View style={styles.localBadge}>
-            <Ionicons name="lock-closed" size={12} color={colors.heroText} />
-            <ThemedText type="smallBold" style={styles.localBadgeText}>
-              Local review
+              retained
             </ThemedText>
           </View>
         </View>
@@ -96,39 +93,34 @@ export default function RefinedPromptsView({
 
       <View style={styles.stats}>
         <StatCard
-          icon="chatbox-ellipses-outline"
           label="Chats"
           hint="View processed sessions"
           value={result.selectedChatCount}
           onPress={() => setDetailKind("chats")}
-          colors={colors}
           styles={styles}
         />
         <StatCard
-          icon="document-text-outline"
+          divided
           label="Refined"
           hint="View retained prompts"
           value={result.prompts.length}
           onPress={() => setDetailKind("refined")}
-          colors={colors}
           styles={styles}
         />
         <StatCard
-          icon="eye-off-outline"
+          divided
           label="Excluded"
           hint="Review removed prompts"
           value={result.excludedPrompts.length}
           onPress={() => setDetailKind("excluded")}
-          colors={colors}
           styles={styles}
         />
         <StatCard
-          icon="shield-outline"
+          divided
           label="Redactions"
           hint="Compare before and after"
           value={result.redactionCount}
           onPress={() => setDetailKind("redactions")}
-          colors={colors}
           styles={styles}
         />
       </View>
@@ -185,45 +177,36 @@ export default function RefinedPromptsView({
 type ScreenStyles = ReturnType<typeof createStyles>;
 
 function StatCard({
-  icon,
   label,
   hint,
   value,
   onPress,
-  colors,
   styles,
+  divided = false,
 }: {
-  icon: keyof typeof Ionicons.glyphMap;
   label: string;
   hint: string;
   value: number;
   onPress: () => void;
-  colors: AppPalette;
   styles: ScreenStyles;
+  divided?: boolean;
 }) {
   return (
     <Pressable
       accessibilityLabel={`${label}: ${value}. ${hint}`}
       accessibilityRole="button"
       onPress={onPress}
-      style={({ pressed }) => [styles.statCard, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.statCard,
+        divided && styles.statCardDivider,
+        pressed && styles.statCardPressed,
+      ]}
     >
-      <View style={styles.statTop}>
-        <View style={styles.statIcon}>
-          <Ionicons name={icon} size={18} color={colors.primaryTeal} />
-        </View>
-        <Ionicons name="arrow-forward" size={15} color={colors.glassMuted} />
-      </View>
-      <View style={styles.statValueRow}>
-        <ThemedText selectable type="smallBold" style={styles.statValue}>
-          {value}
-        </ThemedText>
-        <ThemedText selectable type="smallBold" style={styles.statLabel}>
-          {label}
-        </ThemedText>
-      </View>
-      <ThemedText type="small" style={styles.statHint}>
-        {hint}
+      <ThemedText selectable type="smallBold" style={styles.statValue}>
+        {value}
+      </ThemedText>
+      <ThemedText type="smallBold" style={styles.statLabel}>
+        {label}
       </ThemedText>
     </Pressable>
   );
@@ -263,105 +246,105 @@ function createStyles(c: AppPalette) {
     },
     processedAt: { color: c.glassMuted, fontSize: 11 },
     summaryCard: {
-      backgroundColor: c.heroTeal,
-      borderColor: c.glassCardBorder,
+      backgroundColor: c.surface,
+      borderColor: c.fieldBorder,
       borderCurve: "continuous",
-      borderRadius: 22,
+      borderRadius: 18,
       borderWidth: 1,
-      boxShadow: "0 12px 30px rgba(4, 55, 49, 0.18)",
       gap: Spacing.three,
-      padding: Spacing.four,
+      padding: Spacing.three,
     },
-    summaryTop: { alignItems: "center", flexDirection: "row", gap: Spacing.three },
-    summaryIcon: {
-      alignItems: "center",
-      backgroundColor: c.glassField,
-      borderCurve: "continuous",
-      borderRadius: 14,
-      height: 48,
-      justifyContent: "center",
-      width: 48,
-    },
-    summaryCopy: { flex: 1, gap: Spacing.half },
-    summaryTitle: { color: c.heroText, fontSize: 17 },
-    summaryText: { color: c.heroSubtle, fontSize: 12, lineHeight: 18 },
-    retentionHeader: {
-      alignItems: "center",
+    summaryHeader: {
+      alignItems: "flex-start",
       flexDirection: "row",
+      gap: Spacing.three,
       justifyContent: "space-between",
     },
-    retentionLabel: { color: c.heroSubtle, fontSize: 11 },
-    retentionValue: {
-      color: c.heroText,
-      fontSize: 30,
-      fontVariant: ["tabular-nums"],
-      lineHeight: 34,
-    },
-    localBadge: {
+    summaryStatus: {
       alignItems: "center",
-      backgroundColor: c.glassField,
-      borderRadius: 999,
+      flex: 1,
       flexDirection: "row",
-      gap: Spacing.one,
-      paddingHorizontal: Spacing.two,
-      paddingVertical: Spacing.one,
+      gap: Spacing.two,
+      minWidth: 0,
     },
-    localBadgeText: { color: c.heroText, fontSize: 10 },
+    summaryIcon: {
+      alignItems: "center",
+      backgroundColor: c.lightTealBackground,
+      borderCurve: "continuous",
+      borderRadius: 10,
+      height: 36,
+      justifyContent: "center",
+      width: 36,
+    },
+    summaryCopy: { flex: 1, gap: Spacing.half },
+    summaryTitle: { color: c.glassText, fontSize: 14 },
+    summaryText: { color: c.glassMuted, fontSize: 11, lineHeight: 16 },
+    retentionMetric: {
+      alignItems: "flex-end",
+      flexShrink: 0,
+    },
+    retentionLabel: { color: c.glassMuted, fontSize: 9 },
+    retentionValue: {
+      color: c.primaryTeal,
+      fontSize: 24,
+      fontVariant: ["tabular-nums"],
+      lineHeight: 27,
+    },
     progressTrack: {
-      backgroundColor: c.glassField,
+      backgroundColor: c.fieldSurface,
       borderRadius: 999,
-      height: 8,
+      height: 5,
       overflow: "hidden",
     },
-    progressFill: { backgroundColor: c.accentTeal, borderRadius: 999, height: "100%" },
+    progressFill: {
+      backgroundColor: c.primaryTeal,
+      borderRadius: 999,
+      height: "100%",
+    },
     retentionFooter: {
       flexDirection: "row",
       flexWrap: "wrap",
       gap: Spacing.two,
       justifyContent: "space-between",
     },
-    retentionNote: { color: c.heroSubtle, fontSize: 10 },
+    retentionNote: { color: c.glassMuted, fontSize: 10 },
     stats: {
+      backgroundColor: c.surface,
+      borderColor: c.fieldBorder,
+      borderCurve: "continuous",
+      borderRadius: 16,
+      borderWidth: 1,
       flexDirection: "row",
-      flexWrap: "wrap",
-      gap: Spacing.two,
+      overflow: "hidden",
     },
     statCard: {
-      backgroundColor: c.surface,
-      borderColor: c.cardBorder,
-      borderCurve: "continuous",
-      borderRadius: 18,
-      borderWidth: 1,
-      boxShadow: "0 4px 14px rgba(7, 58, 53, 0.06)",
-      flexBasis: "46%",
-      flexGrow: 1,
-      gap: Spacing.two,
-      minWidth: 136,
-      minHeight: 140,
-      padding: Spacing.three,
-    },
-    statTop: {
       alignItems: "center",
-      flexDirection: "row",
-      justifyContent: "space-between",
-    },
-    statIcon: {
-      alignItems: "center",
-      backgroundColor: c.lightTealBackground,
-      borderRadius: 10,
-      height: 34,
+      flex: 1,
+      gap: Spacing.half,
       justifyContent: "center",
-      width: 34,
+      minHeight: 76,
+      minWidth: 0,
+      paddingHorizontal: Spacing.one,
+      paddingVertical: Spacing.three,
     },
-    statValueRow: { alignItems: "baseline", flexDirection: "row", gap: Spacing.two },
+    statCardDivider: {
+      borderLeftColor: c.fieldBorder,
+      borderLeftWidth: StyleSheet.hairlineWidth,
+    },
+    statCardPressed: { backgroundColor: c.noteSurface },
     statValue: {
       color: c.glassText,
-      fontSize: 24,
+      fontSize: 23,
       fontVariant: ["tabular-nums"],
-      lineHeight: 28,
+      lineHeight: 27,
+      textAlign: "center",
     },
-    statLabel: { color: c.glassText, fontSize: 12 },
-    statHint: { color: c.glassMuted, fontSize: 10, lineHeight: 14 },
+    statLabel: {
+      color: c.glassMuted,
+      fontSize: 9,
+      lineHeight: 12,
+      textAlign: "center",
+    },
     excludedCard: {
       alignItems: "center",
       backgroundColor: c.surface,

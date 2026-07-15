@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useMemo } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
@@ -37,15 +36,22 @@ const ACTIVITY: Metric[] = [
 ];
 
 const WALLET = {
-  balance: 12450,
-  pending: 1200,
-  thisMonth: 3800,
-  projected: 3800,
+  balance: 14.05,
+  pending: 1.2,
+  thisMonth: 3.8,
+  projected: 18,
 };
 
-function formatMoney(value: number) {
+function formatAmount(value: number) {
+  return Math.abs(value).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function formatUsd(value: number) {
   const sign = value < 0 ? "-" : "";
-  return `${sign}$${Math.abs(value).toLocaleString("en-US")}`;
+  return `${sign}${formatAmount(value)} USD`;
 }
 
 export default function HomeScreen() {
@@ -58,8 +64,8 @@ export default function HomeScreen() {
 
   return (
     <AppScreen
-      title={`Hi, ${firstName} 👋`}
-      subtitle="Here’s your earnings and activity overview."
+      title={`Hi, ${firstName}`}
+      subtitle="Your earnings at a glance."
       stickyHeader={false}
       refreshing={refreshing}
       onRefresh={onRefresh}
@@ -83,37 +89,40 @@ export default function HomeScreen() {
         </Pressable>
       }
     >
-      <LinearGradient
-        colors={["#073F3A", "#0A5E55", "#118579"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.walletCard}
-      >
-        <View style={styles.walletGlowLarge} />
-        <View style={styles.walletGlowSmall} />
-
-        <View style={styles.walletHeader}>
-          <View style={styles.walletLabelRow}>
-            <View style={styles.walletIcon}>
-              <Ionicons name="wallet-outline" size={18} color="#ffffff" />
+      <View style={styles.walletCard}>
+        <View style={styles.walletPrimary}>
+          <View style={styles.walletHeader}>
+            <View style={styles.walletTitleRow}>
+              <Ionicons
+                name="wallet-outline"
+                size={17}
+                color={colors.primaryTeal}
+              />
+              <ThemedText type="smallBold" style={styles.walletTitle}>
+                Wallet balance
+              </ThemedText>
             </View>
-            <ThemedText type="smallBold" style={styles.walletEyebrow}>
-              Wallet balance
+            <View style={styles.availablePill}>
+              <View style={styles.availableDot} />
+              <ThemedText type="smallBold" style={styles.walletStatus}>
+                Available
+              </ThemedText>
+            </View>
+          </View>
+
+          <View style={styles.balanceBlock}>
+            <View style={styles.balanceRow}>
+              <ThemedText style={styles.walletBalance} selectable>
+                {formatAmount(WALLET.balance)}
+              </ThemedText>
+              <ThemedText type="smallBold" style={styles.balanceCurrency}>
+                USD
+              </ThemedText>
+            </View>
+            <ThemedText type="small" style={styles.balanceCaption}>
+              Earned from approved chat sessions
             </ThemedText>
           </View>
-          <View style={styles.statusPill}>
-            <View style={styles.statusDot} />
-            <ThemedText style={styles.statusText}>Active</ThemedText>
-          </View>
-        </View>
-
-        <View style={styles.balanceBlock}>
-          <ThemedText style={styles.walletBalance} selectable>
-            {formatMoney(WALLET.balance)}
-          </ThemedText>
-          <ThemedText type="small" style={styles.balanceCaption}>
-            Total earned across approved sessions
-          </ThemedText>
         </View>
 
         <View style={styles.walletSummary}>
@@ -122,7 +131,7 @@ export default function HomeScreen() {
               Pending
             </ThemedText>
             <ThemedText type="smallBold" style={styles.summaryValue} selectable>
-              {formatMoney(WALLET.pending)}
+              {formatUsd(WALLET.pending)}
             </ThemedText>
           </View>
           <View style={styles.summaryDivider} />
@@ -131,11 +140,11 @@ export default function HomeScreen() {
               Earned this month
             </ThemedText>
             <ThemedText type="smallBold" style={styles.summaryValue} selectable>
-              {formatMoney(WALLET.thisMonth)}
+              {formatUsd(WALLET.thisMonth)}
             </ThemedText>
           </View>
         </View>
-      </LinearGradient>
+      </View>
 
       <Pressable
         accessibilityRole="button"
@@ -149,119 +158,112 @@ export default function HomeScreen() {
         <View style={styles.sourceIcon}>
           <Ionicons
             name="cloud-upload-outline"
-            size={22}
+            size={20}
             color={colors.primaryTeal}
           />
         </View>
         <View style={styles.sourceCopy}>
-          <ThemedText style={styles.sourceEyebrow}>CHAT DATA</ThemedText>
           <ThemedText type="smallBold" style={styles.sourceTitle}>
-            Monetize your data
+            Import chat data
           </ThemedText>
           <ThemedText
             type="small"
             style={styles.sourceSubtitle}
             numberOfLines={1}
           >
-            Import new chats or review connected sources
+            Add an archive or manage sources
           </ThemedText>
         </View>
-        <View style={styles.sourceArrow}>
-          <Ionicons name="arrow-forward" size={18} color={colors.primaryTeal} />
-        </View>
+        <Ionicons
+          name="chevron-forward"
+          size={17}
+          color={colors.glassMuted}
+        />
       </Pressable>
 
       <View style={styles.activitySection}>
         <View style={styles.sectionHeader}>
-          <View style={styles.sectionCopy}>
-            <ThemedText type="smallBold" style={styles.sectionTitle}>
-              Activity
-            </ThemedText>
-            <ThemedText type="small" style={styles.sectionSubtitle}>
-              Performance from your shared chats
-            </ThemedText>
-          </View>
-          <View style={styles.periodPill}>
-            <ThemedText style={styles.periodText}>Last 7 days</ThemedText>
-          </View>
+          <ThemedText type="smallBold" style={styles.sectionTitle}>
+            Activity
+          </ThemedText>
+          <ThemedText type="small" style={styles.periodText}>
+            Last 7 days
+          </ThemedText>
         </View>
 
-        <View style={styles.metricGrid}>
-          {ACTIVITY.map((metric) => (
-            <Pressable
-              key={metric.label}
-              accessibilityRole="button"
-              accessibilityLabel={`${metric.label}: ${metric.value}`}
-              style={({ pressed }) => [
-                styles.metricCard,
-                pressed && styles.cardPressed,
-              ]}
-            >
-              <View style={styles.metricTop}>
+        <View style={styles.activityCard}>
+          {ACTIVITY.map((metric, index) => (
+            <View key={metric.label}>
+              <View
+                accessibilityLabel={`${metric.label}: ${metric.value}`}
+                style={styles.metricRow}
+              >
                 <View style={styles.metricIcon}>
                   <Ionicons
                     name={metric.icon}
-                    size={19}
+                    size={17}
                     color={colors.primaryTeal}
                   />
                 </View>
-                <View style={styles.deltaPill}>
-                  {metric.delta.startsWith("+") ? (
-                    <Ionicons
-                      name="arrow-up"
-                      size={11}
-                      color={colors.primaryTeal}
-                    />
-                  ) : null}
+                <View style={styles.metricCopy}>
+                  <ThemedText type="smallBold" style={styles.metricLabel}>
+                    {metric.label}
+                  </ThemedText>
+                  <ThemedText type="small" style={styles.metricCaption}>
+                    {metric.caption}
+                  </ThemedText>
+                </View>
+                <View style={styles.metricValueBlock}>
+                  <ThemedText style={styles.metricValue} selectable>
+                    {metric.value}
+                  </ThemedText>
                   <ThemedText style={styles.deltaText}>
                     {metric.delta}
                   </ThemedText>
                 </View>
               </View>
-              <ThemedText style={styles.metricValue} selectable>
-                {metric.value}
-              </ThemedText>
+              {index < ACTIVITY.length - 1 ? (
+                <View style={styles.rowDivider} />
+              ) : null}
+            </View>
+          ))}
+
+          <View style={styles.sectionDivider} />
+
+          <View
+            accessibilityLabel={`Projected earnings: ${formatUsd(WALLET.projected)}`}
+            style={styles.metricRow}
+          >
+            <View style={styles.metricIcon}>
+              <Ionicons
+                name="trending-up-outline"
+                size={17}
+                color={colors.primaryTeal}
+              />
+            </View>
+            <View style={styles.metricCopy}>
               <ThemedText type="smallBold" style={styles.metricLabel}>
-                {metric.label}
+                Projected earnings
               </ThemedText>
               <ThemedText type="small" style={styles.metricCaption}>
-                {metric.caption}
+                This quarter
               </ThemedText>
-            </Pressable>
-          ))}
+            </View>
+            <View style={styles.metricValueBlock}>
+              <ThemedText style={styles.projectedValue} selectable>
+                {formatUsd(WALLET.projected)}
+              </ThemedText>
+              <View style={styles.growthRow}>
+                <Ionicons
+                  name="arrow-up"
+                  size={10}
+                  color={colors.primaryTeal}
+                />
+                <ThemedText style={styles.growthText}>12%</ThemedText>
+              </View>
+            </View>
+          </View>
         </View>
-
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Projected earnings: ${formatMoney(WALLET.projected)}`}
-          style={({ pressed }) => [
-            styles.projectedCard,
-            pressed && styles.cardPressed,
-          ]}
-        >
-          <View style={styles.projectedIcon}>
-            <Ionicons
-              name="trending-up-outline"
-              size={21}
-              color={colors.primaryTeal}
-            />
-          </View>
-          <View style={styles.projectedCopy}>
-            <ThemedText type="small" style={styles.projectedLabel}>
-              Projected earnings
-            </ThemedText>
-            <ThemedText style={styles.projectedValue} selectable>
-              {formatMoney(WALLET.projected)}
-            </ThemedText>
-            <ThemedText type="small" style={styles.projectedCaption}>
-              On track for this quarter
-            </ThemedText>
-          </View>
-          <View style={styles.growthPill}>
-            <Ionicons name="arrow-up" size={11} color={colors.primaryTeal} />
-            <ThemedText style={styles.growthText}>12%</ThemedText>
-          </View>
-        </Pressable>
       </View>
     </AppScreen>
   );
@@ -274,153 +276,138 @@ function createStyles(c: AppPalette) {
     },
     notificationButton: {
       alignItems: "center",
-      backgroundColor: c.surface,
-      borderColor: c.cardBorder,
+      backgroundColor: c.surfaceGlass,
+      borderColor: c.fieldBorder,
       borderCurve: "continuous",
-      borderRadius: 16,
+      borderRadius: 14,
       borderWidth: 1,
-      height: 46,
+      height: 42,
       justifyContent: "center",
-      width: 46,
+      width: 42,
     },
     notificationBadge: {
       backgroundColor: c.danger,
-      borderColor: c.surface,
+      borderColor: c.screenBg,
       borderRadius: 5,
       borderWidth: 2,
       height: 9,
       position: "absolute",
-      right: 10,
-      top: 9,
+      right: 8,
+      top: 7,
       width: 9,
     },
     walletCard: {
+      backgroundColor: c.surface,
+      borderColor: c.fieldBorder,
       borderCurve: "continuous",
-      borderRadius: 26,
-      gap: Spacing.four,
+      borderRadius: 20,
+      borderWidth: 1,
       overflow: "hidden",
-      padding: Spacing.four,
-      shadowColor: "#063D37",
-      shadowOffset: { width: 0, height: 12 },
-      shadowOpacity: 0.24,
-      shadowRadius: 24,
-      elevation: 5,
     },
-    walletGlowLarge: {
-      backgroundColor: "rgba(255, 255, 255, 0.08)",
-      borderRadius: 130,
-      height: 260,
-      position: "absolute",
-      right: -100,
-      top: -100,
-      width: 260,
-    },
-    walletGlowSmall: {
-      backgroundColor: "rgba(94, 234, 212, 0.10)",
-      borderRadius: 70,
-      bottom: -65,
-      height: 140,
-      left: 90,
-      position: "absolute",
-      width: 140,
+    walletPrimary: {
+      backgroundColor: c.lightTealBackground,
+      gap: Spacing.three,
+      padding: 20,
     },
     walletHeader: {
       alignItems: "center",
       flexDirection: "row",
       justifyContent: "space-between",
     },
-    walletLabelRow: {
+    walletTitleRow: {
       alignItems: "center",
       flexDirection: "row",
       gap: Spacing.two,
     },
-    walletIcon: {
+    walletTitle: {
+      color: c.glassText,
+      fontSize: 14,
+    },
+    availablePill: {
       alignItems: "center",
-      backgroundColor: "rgba(255, 255, 255, 0.14)",
-      borderColor: "rgba(255, 255, 255, 0.22)",
+      backgroundColor: c.surface,
       borderCurve: "continuous",
-      borderRadius: 12,
-      borderWidth: 1,
-      height: 36,
-      justifyContent: "center",
-      width: 36,
-    },
-    walletEyebrow: {
-      color: "rgba(255, 255, 255, 0.82)",
-      fontSize: 13,
-    },
-    statusPill: {
-      alignItems: "center",
-      backgroundColor: "rgba(255, 255, 255, 0.12)",
       borderRadius: 999,
       flexDirection: "row",
       gap: 5,
-      paddingHorizontal: 10,
-      paddingVertical: 6,
+      paddingHorizontal: Spacing.two,
+      paddingVertical: 5,
     },
-    statusDot: {
-      backgroundColor: "#5EEAD4",
-      borderRadius: 4,
-      height: 7,
-      width: 7,
+    availableDot: {
+      backgroundColor: c.primaryTeal,
+      borderRadius: 999,
+      height: 6,
+      width: 6,
     },
-    statusText: {
-      color: "#ffffff",
-      fontSize: 11,
-      fontWeight: "700",
+    walletStatus: {
+      color: c.primaryTeal,
+      fontSize: 10,
     },
     balanceBlock: {
-      gap: Spacing.one,
+      gap: Spacing.half,
+    },
+    balanceRow: {
+      alignItems: "baseline",
+      flexDirection: "row",
+      gap: Spacing.two,
     },
     walletBalance: {
-      color: "#ffffff",
-      fontSize: 42,
+      color: c.glassText,
+      fontSize: 40,
       fontVariant: ["tabular-nums"],
       fontWeight: "800",
-      letterSpacing: -1.2,
-      lineHeight: 48,
+      letterSpacing: -1,
+      lineHeight: 46,
     },
-    balanceCaption: {
-      color: "rgba(240, 253, 249, 0.68)",
-    },
-    walletSummary: {
-      backgroundColor: "rgba(255, 255, 255, 0.11)",
-      borderColor: "rgba(255, 255, 255, 0.12)",
-      borderCurve: "continuous",
-      borderRadius: 16,
-      borderWidth: 1,
-      flexDirection: "row",
-      paddingHorizontal: Spacing.three,
-      paddingVertical: Spacing.three,
-    },
-    walletSummaryItem: {
-      flex: 1,
-      gap: 3,
-    },
-    summaryDivider: {
-      backgroundColor: "rgba(255, 255, 255, 0.18)",
-      marginHorizontal: Spacing.three,
-      width: StyleSheet.hairlineWidth,
-    },
-    summaryLabel: {
-      color: "rgba(240, 253, 249, 0.68)",
+    balanceCurrency: {
+      color: c.glassMuted,
       fontSize: 12,
     },
+    balanceCaption: {
+      color: c.glassMuted,
+      fontSize: 11,
+    },
+    walletSummary: {
+      alignItems: "stretch",
+      flexDirection: "row",
+      padding: Spacing.three,
+    },
+    walletSummaryItem: {
+      alignItems: "center",
+      flex: 1,
+      gap: Spacing.half,
+      justifyContent: "center",
+      minHeight: 42,
+    },
+    summaryDivider: {
+      alignSelf: "stretch",
+      backgroundColor: c.fieldBorder,
+      marginHorizontal: Spacing.three,
+      width: 1,
+    },
+    summaryLabel: {
+      color: c.glassMuted,
+      fontSize: 11,
+      textAlign: "center",
+    },
     summaryValue: {
-      color: "#ffffff",
+      color: c.glassText,
       fontVariant: ["tabular-nums"],
-      fontSize: 16,
+      fontSize: 13,
+      textAlign: "center",
     },
     sourceCard: {
       alignItems: "center",
       backgroundColor: c.surface,
-      borderColor: c.cardBorder,
+      borderColor: c.fieldBorder,
       borderCurve: "continuous",
-      borderRadius: 20,
+      borderRadius: 16,
       borderWidth: 1,
       flexDirection: "row",
-      gap: Spacing.three,
-      padding: Spacing.three,
+      gap: Spacing.two,
+      minHeight: 66,
+      paddingHorizontal: Spacing.three,
+      paddingVertical: Spacing.two,
     },
     sourceCardPressed: {
       opacity: 0.76,
@@ -430,126 +417,80 @@ function createStyles(c: AppPalette) {
       alignItems: "center",
       backgroundColor: c.lightTealBackground,
       borderCurve: "continuous",
-      borderRadius: 15,
-      height: 48,
+      borderRadius: 12,
+      height: 40,
       justifyContent: "center",
-      width: 48,
+      width: 40,
     },
     sourceCopy: {
       flex: 1,
       gap: 1,
       minWidth: 0,
     },
-    sourceEyebrow: {
-      color: c.primaryTeal,
-      fontSize: 10,
-      fontWeight: "800",
-      letterSpacing: 0.7,
-    },
     sourceTitle: {
       color: c.glassText,
-      fontSize: 15,
+      fontSize: 14,
     },
     sourceSubtitle: {
       color: c.glassMuted,
-      fontSize: 12,
-    },
-    sourceArrow: {
-      alignItems: "center",
-      backgroundColor: c.lightTealBackground,
-      borderRadius: 999,
-      height: 34,
-      justifyContent: "center",
-      width: 34,
+      fontSize: 11,
     },
     activitySection: {
-      gap: Spacing.three,
+      gap: Spacing.two,
     },
     sectionHeader: {
-      alignItems: "flex-end",
+      alignItems: "center",
       flexDirection: "row",
       justifyContent: "space-between",
       paddingHorizontal: Spacing.one,
     },
-    sectionCopy: {
-      flex: 1,
-      gap: 1,
-    },
     sectionTitle: {
       color: c.glassText,
-      fontSize: 18,
-    },
-    sectionSubtitle: {
-      color: c.glassMuted,
-      fontSize: 12,
-    },
-    periodPill: {
-      backgroundColor: c.lightTealBackground,
-      borderRadius: 999,
-      paddingHorizontal: 10,
-      paddingVertical: 6,
+      fontSize: 15,
     },
     periodText: {
-      color: c.primaryTeal,
+      color: c.glassMuted,
       fontSize: 11,
-      fontWeight: "700",
     },
-    metricGrid: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: Spacing.three,
-    },
-    metricCard: {
+    activityCard: {
       backgroundColor: c.surface,
-      borderColor: c.cardBorder,
+      borderColor: c.fieldBorder,
       borderCurve: "continuous",
-      borderRadius: 20,
+      borderRadius: 18,
       borderWidth: 1,
-      flexBasis: 150,
-      flexGrow: 1,
-      gap: 2,
-      minHeight: 176,
-      padding: Spacing.three,
+      paddingHorizontal: Spacing.three,
     },
-    cardPressed: {
-      opacity: 0.72,
-      transform: [{ scale: 0.99 }],
-    },
-    metricTop: {
+    metricRow: {
       alignItems: "center",
       flexDirection: "row",
-      justifyContent: "space-between",
-      marginBottom: Spacing.three,
+      gap: Spacing.three,
+      minHeight: 74,
+      paddingVertical: Spacing.three,
     },
     metricIcon: {
       alignItems: "center",
       backgroundColor: c.lightTealBackground,
       borderCurve: "continuous",
-      borderRadius: 13,
-      height: 40,
+      borderRadius: 11,
+      height: 36,
       justifyContent: "center",
-      width: 40,
+      width: 36,
     },
-    deltaPill: {
-      alignItems: "center",
-      backgroundColor: c.lightTealBackground,
-      borderRadius: 999,
-      flexDirection: "row",
-      gap: 2,
-      paddingHorizontal: Spacing.two,
-      paddingVertical: 4,
+    metricCopy: {
+      flex: 1,
+      gap: Spacing.half,
+      minWidth: 0,
     },
-    deltaText: {
-      color: c.primaryTeal,
-      fontSize: 11,
-      fontWeight: "800",
+    metricValueBlock: {
+      alignItems: "flex-end",
+      gap: Spacing.half,
     },
     metricValue: {
       color: c.glassText,
-      fontSize: 30,
+      fontSize: 21,
       fontVariant: ["tabular-nums"],
       fontWeight: "800",
-      lineHeight: 34,
+      lineHeight: 24,
     },
     metricLabel: {
       color: c.glassText,
@@ -557,60 +498,38 @@ function createStyles(c: AppPalette) {
     },
     metricCaption: {
       color: c.glassMuted,
-      fontSize: 12,
+      fontSize: 11,
     },
-    projectedCard: {
-      alignItems: "center",
-      backgroundColor: c.surface,
-      borderColor: c.cardBorder,
-      borderCurve: "continuous",
-      borderRadius: 20,
-      borderWidth: 1,
-      flexDirection: "row",
-      gap: Spacing.three,
-      padding: Spacing.three,
-    },
-    projectedIcon: {
-      alignItems: "center",
-      backgroundColor: c.lightTealBackground,
-      borderCurve: "continuous",
-      borderRadius: 15,
-      height: 48,
-      justifyContent: "center",
-      width: 48,
-    },
-    projectedCopy: {
-      flex: 1,
-      gap: 1,
-    },
-    projectedLabel: {
-      color: c.glassMuted,
-      fontSize: 12,
+    deltaText: {
+      color: c.primaryTeal,
+      fontSize: 10,
+      fontWeight: "700",
     },
     projectedValue: {
       color: c.glassText,
-      fontSize: 24,
+      fontSize: 17,
       fontVariant: ["tabular-nums"],
       fontWeight: "800",
-      lineHeight: 28,
+      lineHeight: 21,
     },
-    projectedCaption: {
-      color: c.glassMuted,
-      fontSize: 12,
+    rowDivider: {
+      backgroundColor: c.fieldBorder,
+      height: StyleSheet.hairlineWidth,
+      marginLeft: 52,
     },
-    growthPill: {
+    sectionDivider: {
+      backgroundColor: c.fieldBorder,
+      height: StyleSheet.hairlineWidth,
+    },
+    growthRow: {
       alignItems: "center",
-      backgroundColor: c.lightTealBackground,
-      borderRadius: 999,
       flexDirection: "row",
-      gap: 2,
-      paddingHorizontal: 10,
-      paddingVertical: 6,
+      gap: 1,
     },
     growthText: {
       color: c.primaryTeal,
-      fontSize: 12,
-      fontWeight: "800",
+      fontSize: 10,
+      fontWeight: "700",
     },
   });
 }

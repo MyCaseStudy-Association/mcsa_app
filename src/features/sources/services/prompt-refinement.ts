@@ -47,6 +47,7 @@ export type RefinedSessionSummary = {
   refinedPromptCount: number;
   excludedPromptCount: number;
   redactionCount: number;
+  titleRedacted: boolean;
   affected: boolean;
 };
 
@@ -598,6 +599,7 @@ export function refineSelectedSessions(
       refinedPromptCount: sessionRefined,
       excludedPromptCount: sessionExcluded,
       redactionCount: sessionRedactions,
+      titleRedacted: safeSessionTitle !== session.title,
       affected:
         sessionRedactions > 0 ||
         sessionExcluded > 0 ||

@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import { Tabs, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 
 import { AppScreen } from "@/components/ui/app-screen";
 import { SmoothModal } from "@/components/ui/smooth-modal";
@@ -16,6 +16,7 @@ import {
   CHAT_SOURCES,
   ChatSourceMeta,
 } from "@/features/sources/data/chat-sources";
+import RefinedPromptsView from "@/features/sources/screens/refined-prompts-screen";
 import {
   ChatImportError,
   ChatSession,
@@ -24,9 +25,9 @@ import {
 } from "@/features/sources/services/chat-import";
 import {
   type PromptRefinementResult,
+  type RefinedSessionSummary,
   refineSelectedSessions,
 } from "@/features/sources/services/prompt-refinement";
-import RefinedPromptsView from "@/features/sources/screens/refined-prompts-screen";
 import { AppPalette, Spacing } from "@/theme/theme";
 import { useColors } from "@/theme/theme-provider";
 
@@ -44,8 +45,13 @@ export default function SourcesScreen() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [viewing, setViewing] = useState<ChatSession | null>(null);
   const [finishing, setFinishing] = useState(false);
+  const [consentAccepted, setConsentAccepted] = useState(false);
+  const [consentModalOpen, setConsentModalOpen] = useState(false);
   const [refinementResult, setRefinementResult] =
     useState<PromptRefinementResult | null>(null);
+  const [reviewSessionSummaries, setReviewSessionSummaries] = useState<
+    RefinedSessionSummary[]
+  >([]);
 
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -84,11 +90,16 @@ export default function SourcesScreen() {
 
       setResult(imported);
       setSelected(selectedIds);
+      setConsentAccepted(false);
       setRefinementResult(refined);
+      setReviewSessionSummaries(refined.sessions);
     } catch (importError) {
       setResult(null);
       setSelected(new Set());
+      setConsentAccepted(false);
+      setConsentModalOpen(false);
       setRefinementResult(null);
+      setReviewSessionSummaries([]);
       setError(
         importError instanceof ChatImportError
           ? importError.message
@@ -111,6 +122,7 @@ export default function SourcesScreen() {
 
   function applySelection(next: Set<string>) {
     setSelected(next);
+    setConsentAccepted(false);
     if (!result) return;
 
     const sessions = result.sessions.filter((session) => next.has(session.id));
@@ -124,7 +136,10 @@ export default function SourcesScreen() {
     : selected.size;
 
   function resetImport() {
+    setConsentAccepted(false);
+    setConsentModalOpen(false);
     setRefinementResult(null);
+    setReviewSessionSummaries([]);
     setResult(null);
     setSelected(new Set());
     setError("");
@@ -135,8 +150,12 @@ export default function SourcesScreen() {
     const selectableSessions = result.sessions.filter(
       (session) => session.promptCount > 0,
     );
+    const summaryBySessionId = new Map(
+      reviewSessionSummaries.map((summary) => [summary.id, summary]),
+    );
     const allSelected =
-      selectableSessions.length > 0 && selectedCount === selectableSessions.length;
+      selectableSessions.length > 0 &&
+      selectedCount === selectableSessions.length;
     return (
       <>
         <Tabs.Screen options={{ tabBarStyle: { display: "none" } }} />
@@ -148,55 +167,87 @@ export default function SourcesScreen() {
           onBack={resetImport}
           footer={
             <View style={styles.resultFooter}>
-              <View style={styles.selectedSummary}>
-                <ThemedText
-                  selectable
-                  type="smallBold"
-                  style={styles.selectedFooterCount}
+              <View style={styles.consentRow}>
+                <Pressable
+                  accessibilityLabel="I accept the Data Sale Consent"
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: consentAccepted }}
+                  hitSlop={6}
+                  onPress={() => setConsentAccepted((accepted) => !accepted)}
+                  style={({ pressed }) => [
+                    styles.consentToggle,
+                    pressed && styles.pressed,
+                  ]}
                 >
-                  {selectedCount}
-                </ThemedText>
-                <ThemedText type="small" style={styles.selectedFooterLabel}>
-                  selected
-                </ThemedText>
+                  <View
+                    style={[
+                      styles.consentCheckbox,
+                      consentAccepted && styles.consentCheckboxChecked,
+                    ]}
+                  >
+                    {consentAccepted ? (
+                      <Ionicons name="checkmark" size={14} color="#ffffff" />
+                    ) : null}
+                  </View>
+                  <ThemedText type="small" style={styles.consentText}>
+                    I accept the
+                  </ThemedText>
+                </Pressable>
+                <Pressable
+                  accessibilityLabel="Review Data Sale Consent"
+                  accessibilityRole="link"
+                  hitSlop={6}
+                  onPress={() => setConsentModalOpen(true)}
+                  style={({ pressed }) => [
+                    styles.consentLink,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <ThemedText type="smallBold" style={styles.consentLinkText}>
+                    terms & conditions
+                  </ThemedText>
+                </Pressable>
+                <Pressable
+                  accessibilityLabel="I accept the Data Sale Consent"
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: consentAccepted }}
+                  hitSlop={6}
+                  onPress={() => setConsentAccepted((accepted) => !accepted)}
+                  style={({ pressed }) => [
+                    styles.consentToggle,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <ThemedText type="small" style={styles.consentText}>
+                    to sale the data.
+                  </ThemedText>
+                </Pressable>
               </View>
-              <View style={styles.footerButton}>
-                <PrimaryButton
-                  align="left"
-                  label="Continue"
-                  icon="arrow-forward"
-                  disabled={selectedCount === 0 || !refinementResult}
-                  loading={finishing}
-                  loadingLabel="Opening Home…"
-                  onPress={() => {
-                    setFinishing(true);
-                    requestAnimationFrame(() =>
-                      router.replace("/(tabs)/home"),
-                    );
-                  }}
-                />
+              <View style={styles.footerActions}>
+                <View style={styles.footerButton}>
+                  <PrimaryButton
+                    align="left"
+                    label={`Continue (${selectedCount})`}
+                    icon="arrow-forward"
+                    disabled={
+                      selectedCount === 0 ||
+                      !refinementResult ||
+                      !consentAccepted
+                    }
+                    loading={finishing}
+                    loadingLabel="Opening Home…"
+                    onPress={() => {
+                      setFinishing(true);
+                      requestAnimationFrame(() =>
+                        router.replace("/(tabs)/home"),
+                      );
+                    }}
+                  />
+                </View>
               </View>
             </View>
           }
         >
-          <View style={styles.resultHero}>
-            <View style={styles.resultHeroIcon}>
-              <Ionicons
-                name="checkmark-circle-outline"
-                size={22}
-                color={colors.primaryTeal}
-              />
-            </View>
-            <View style={styles.resultHeroCopy}>
-              <ThemedText type="smallBold" style={styles.resultHeroTitle}>
-                {selectedCount} chats refined successfully
-              </ThemedText>
-              <ThemedText type="small" style={styles.resultHeroText}>
-                Review the refined prompts and adjust your chat selection below.
-              </ThemedText>
-            </View>
-          </View>
-
           {error ? <AuthNotice message={error} /> : null}
 
           {refinementResult ? (
@@ -225,7 +276,9 @@ export default function SourcesScreen() {
                   applySelection(
                     allSelected
                       ? new Set()
-                      : new Set(selectableSessions.map((session) => session.id)),
+                      : new Set(
+                          selectableSessions.map((session) => session.id),
+                        ),
                   );
                 }}
                 style={({ pressed }) => [
@@ -249,97 +302,246 @@ export default function SourcesScreen() {
             </View>
 
             <View style={styles.chatList}>
-            {selectableSessions.map((session) => {
-              const hasChat = session.promptCount > 0;
-              const isSelected = hasChat && selected.has(session.id);
-              return (
-                <View
-                  key={session.id}
-                  style={[
-                    styles.chat,
-                    isSelected && styles.chatSelected,
-                  ]}
-                >
-                  <Pressable
-                    accessibilityLabel={
-                      `${session.title}, ${session.promptCount} user prompts`
-                    }
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: isSelected, disabled: !hasChat }}
-                    disabled={!hasChat}
-                    onPress={() => toggle(session.id)}
-                    style={({ pressed }) => [
-                      styles.chatSelectArea,
-                      pressed && styles.pressed,
-                    ]}
+              {selectableSessions.map((session) => {
+                const hasChat = session.promptCount > 0;
+                const isSelected = hasChat && selected.has(session.id);
+                const summary = summaryBySessionId.get(session.id);
+                const wasRedacted = Boolean(
+                  summary &&
+                  (summary.redactionCount > 0 || summary.titleRedacted),
+                );
+                const excludedCount = summary?.excludedPromptCount ?? 0;
+                const statusDescription = [
+                  wasRedacted ? "redacted" : null,
+                  excludedCount > 0
+                    ? `${excludedCount} ${excludedCount === 1 ? "prompt" : "prompts"} excluded`
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(", ");
+                return (
+                  <View
+                    key={session.id}
+                    style={[styles.chat, isSelected && styles.chatSelected]}
                   >
-                    <View
-                      style={[
-                        styles.checkbox,
-                        isSelected && styles.checkboxOn,
-                        !hasChat && styles.checkboxDisabled,
-                      ]}
-                    >
-                      <ThemedText
-                        style={[
-                          styles.promptCount,
-                          isSelected && styles.promptCountSelected,
-                        ]}
-                      >
-                        {session.promptCount}
-                      </ThemedText>
-                    </View>
-                    <View style={styles.chatCopy}>
-                      <ThemedText
-                        type="smallBold"
-                        numberOfLines={1}
-                        ellipsizeMode="tail"
-                        style={styles.chatTitle}
-                    >
-                      {session.title}
-                    </ThemedText>
-                    </View>
-                  </Pressable>
-                  {hasChat ? (
                     <Pressable
-                      accessibilityLabel={`Preview ${session.title}`}
-                      accessibilityRole="button"
-                      onPress={() => setViewing(session)}
+                      accessibilityLabel={`${session.title}, ${session.promptCount} user prompts${
+                        statusDescription ? `, ${statusDescription}` : ""
+                      }`}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{
+                        checked: isSelected,
+                        disabled: !hasChat,
+                      }}
+                      disabled={!hasChat}
+                      onPress={() => toggle(session.id)}
                       style={({ pressed }) => [
-                        styles.viewButton,
+                        styles.chatSelectArea,
                         pressed && styles.pressed,
                       ]}
                     >
-                      <Ionicons
-                        name="eye-outline"
-                        size={16}
-                        color={colors.primaryTeal}
-                      />
+                      <View
+                        style={[
+                          styles.checkbox,
+                          isSelected && styles.checkboxOn,
+                          !hasChat && styles.checkboxDisabled,
+                        ]}
+                      >
+                        {isSelected ? (
+                          <Ionicons
+                            name="checkmark"
+                            size={14}
+                            color="#ffffff"
+                          />
+                        ) : null}
+                      </View>
+                      <View style={styles.chatCopy}>
+                        <ThemedText
+                          type="smallBold"
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                          style={styles.chatTitle}
+                        >
+                          {session.title}
+                        </ThemedText>
+                        <View style={styles.chatMetaRow}>
+                          <ThemedText type="small" style={styles.chatMeta}>
+                            {session.promptCount}{" "}
+                            {session.promptCount === 1 ? "prompt" : "prompts"}
+                          </ThemedText>
+                          {wasRedacted ? (
+                            <View
+                              accessibilityLabel="Personal identifiers redacted"
+                              accessibilityRole="text"
+                              style={styles.redactedBadge}
+                            >
+                              <Ionicons
+                                name="shield-checkmark-outline"
+                                size={11}
+                                color={colors.primaryTeal}
+                              />
+                              <ThemedText
+                                type="smallBold"
+                                style={styles.redactedBadgeText}
+                              >
+                                Redacted
+                              </ThemedText>
+                            </View>
+                          ) : null}
+                          {excludedCount > 0 ? (
+                            <View
+                              accessibilityLabel={`${excludedCount} ${
+                                excludedCount === 1 ? "prompt" : "prompts"
+                              } excluded`}
+                              accessibilityRole="text"
+                              style={styles.excludedBadge}
+                            >
+                              <Ionicons
+                                name="eye-off-outline"
+                                size={11}
+                                color={colors.danger}
+                              />
+                              <ThemedText
+                                type="smallBold"
+                                style={styles.excludedBadgeText}
+                              >
+                                {excludedCount} excluded
+                              </ThemedText>
+                            </View>
+                          ) : null}
+                        </View>
+                      </View>
                     </Pressable>
-                  ) : (
-                    <View
-                      accessibilityLabel="No chat available"
-                      accessibilityRole="text"
-                      style={styles.unavailablePill}
-                    >
-                      <Ionicons
-                        name="information-circle-outline"
-                        size={15}
-                        color={colors.glassMuted}
-                      />
-                      <ThemedText type="smallBold" style={styles.unavailableText}>
-                        No chat available
-                      </ThemedText>
-                    </View>
-                  )}
-                </View>
-              );
-            })}
+                    {hasChat ? (
+                      <Pressable
+                        accessibilityLabel={`Preview ${session.title}`}
+                        accessibilityRole="button"
+                        onPress={() => setViewing(session)}
+                        style={({ pressed }) => [
+                          styles.viewButton,
+                          pressed && styles.pressed,
+                        ]}
+                      >
+                        <Ionicons
+                          name="eye-outline"
+                          size={16}
+                          color={colors.primaryTeal}
+                        />
+                      </Pressable>
+                    ) : (
+                      <View
+                        accessibilityLabel="No chat available"
+                        accessibilityRole="text"
+                        style={styles.unavailablePill}
+                      >
+                        <Ionicons
+                          name="information-circle-outline"
+                          size={15}
+                          color={colors.glassMuted}
+                        />
+                        <ThemedText
+                          type="smallBold"
+                          style={styles.unavailableText}
+                        >
+                          No chat available
+                        </ThemedText>
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
             </View>
           </View>
 
           <ChatViewerModal session={viewing} onClose={() => setViewing(null)} />
         </AppScreen>
+        <SmoothModal
+          contentStyle={styles.consentModal}
+          dismissible={false}
+          keyboardAvoiding={false}
+          onClose={() => setConsentModalOpen(false)}
+          placement="center"
+          visible={consentModalOpen}
+        >
+          <View style={styles.consentModalIcon}>
+            <Ionicons
+              name="document-text-outline"
+              size={26}
+              color={colors.primaryTeal}
+            />
+          </View>
+          <ThemedText
+            selectable
+            type="smallBold"
+            style={styles.consentModalTitle}
+          >
+            Data Sale Consent
+          </ThemedText>
+          <ThemedText selectable type="small" style={styles.consentModalText}>
+            By accepting, you agree that your selected, refined data may be
+            offered for sale.
+          </ThemedText>
+          <View style={styles.consentTerms}>
+            <View style={styles.consentTermRow}>
+              <Ionicons
+                name="alert-circle-outline"
+                size={18}
+                color={colors.danger}
+              />
+              <ThemedText
+                selectable
+                type="small"
+                style={styles.consentTermText}
+              >
+                Once data is sold, the sale cannot be recalled or reversed.
+              </ThemedText>
+            </View>
+            <View style={styles.consentTermRow}>
+              <Ionicons
+                name="trash-outline"
+                size={18}
+                color={colors.primaryTeal}
+              />
+              <ThemedText
+                selectable
+                type="small"
+                style={styles.consentTermText}
+              >
+                Data that has not been sold can still be deleted.
+              </ThemedText>
+            </View>
+          </View>
+          <Pressable
+            accessibilityLabel="Accept Data Sale Consent"
+            accessibilityRole="button"
+            onPress={() => {
+              setConsentAccepted(true);
+              setConsentModalOpen(false);
+            }}
+            style={({ pressed }) => [
+              styles.acceptConsentButton,
+              pressed && styles.acceptConsentButtonPressed,
+            ]}
+          >
+            <Ionicons name="checkmark-circle" size={20} color="#ffffff" />
+            <ThemedText type="smallBold" style={styles.acceptConsentText}>
+              Accept consent
+            </ThemedText>
+          </Pressable>
+          <Pressable
+            accessibilityLabel="Cancel consent"
+            accessibilityRole="button"
+            onPress={() => setConsentModalOpen(false)}
+            style={({ pressed }) => [
+              styles.cancelConsentButton,
+              pressed && styles.pressed,
+            ]}
+          >
+            <ThemedText type="smallBold" style={styles.cancelConsentText}>
+              Cancel
+            </ThemedText>
+          </Pressable>
+        </SmoothModal>
       </>
     );
   }
@@ -349,209 +551,174 @@ export default function SourcesScreen() {
     <>
       <Tabs.Screen
         options={{
-          tabBarStyle: {
-            backgroundColor: colors.tabBar,
-            borderTopColor: colors.fieldBorder,
-          },
+          tabBarStyle: { display: "none" },
         }}
       />
       <AppScreen
         title="Sources"
-        subtitle="Bring your conversations into Portibilify securely."
+        subtitle="Import a conversation archive."
         onBack={() => router.back()}
       >
-        <View style={styles.stepSection}>
-          <View style={styles.stepHeader}>
-            <View style={styles.stepBadge}>
-              <ThemedText style={styles.stepNumber}>1</ThemedText>
-            </View>
-            <View style={styles.stepCopy}>
-              <ThemedText type="smallBold" style={styles.stepTitle}>
-                Choose a source
-              </ThemedText>
-              <ThemedText type="small" style={styles.stepSubtitle}>
-                Select where your conversations came from.
-              </ThemedText>
-            </View>
-          </View>
-
+        <View style={styles.sourceSection}>
+          <ThemedText type="smallBold" style={styles.sectionLabel}>
+            Source
+          </ThemedText>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={`Selected source: ${selectedSource.name}. Change source`}
             onPress={() => setDropdownOpen(true)}
             style={({ pressed }) => [
-              styles.providerCard,
+              styles.sourceSelector,
               pressed && styles.cardPressed,
             ]}
           >
             <View
               style={[
-                styles.providerIcon,
+                styles.sourceIcon,
                 { backgroundColor: `${selectedIconColor}14` },
               ]}
             >
-              <selectedSource.Glyph size={24} color={selectedIconColor} />
+              <selectedSource.Glyph size={20} color={selectedIconColor} />
             </View>
-            <View style={styles.providerCopy}>
-              <ThemedText type="smallBold" style={styles.providerName}>
+            <View style={styles.sourceCopy}>
+              <ThemedText type="smallBold" style={styles.sourceName}>
                 {selectedSource.name}
               </ThemedText>
               <ThemedText
                 type="small"
-                style={styles.providerDescription}
+                style={styles.sourceDescription}
                 numberOfLines={1}
               >
                 {selectedSource.blurb}
               </ThemedText>
             </View>
-            <View style={styles.changeButton}>
-              <ThemedText type="smallBold" style={styles.changeText}>
-                Change
-              </ThemedText>
-              <Ionicons
-                name="chevron-down"
-                size={15}
-                color={colors.primaryTeal}
-              />
-            </View>
+            <Ionicons
+              name="chevron-down"
+              size={17}
+              color={colors.glassMuted}
+            />
           </Pressable>
         </View>
 
-        <View style={styles.stepSection}>
-          <View style={styles.stepHeader}>
-            <View style={styles.stepBadge}>
-              <ThemedText style={styles.stepNumber}>2</ThemedText>
-            </View>
-            <View style={styles.stepCopy}>
-              <ThemedText type="smallBold" style={styles.stepTitle}>
-                Import your archive
-              </ThemedText>
-              <ThemedText type="small" style={styles.stepSubtitle}>
-                Choose the export file {selectedSource.name} emailed you.
-              </ThemedText>
-            </View>
+        <View style={styles.importSection}>
+          <View style={styles.importHeading}>
+            <ThemedText type="smallBold" style={styles.sectionLabel}>
+              Import archive
+            </ThemedText>
+            <ThemedText type="small" style={styles.sectionHint}>
+              From {selectedSource.name}
+            </ThemedText>
           </View>
 
-          <View style={styles.uploadCard}>
-            <View style={styles.uploadHero}>
-              <View style={styles.uploadIcon}>
-                <Ionicons
-                  name="cloud-upload-outline"
-                  size={26}
-                  color={colors.primaryTeal}
-                />
-              </View>
-              <View style={styles.uploadCopy}>
-                <ThemedText type="smallBold" style={styles.uploadTitle}>
-                  {busy ? "Importing and refining…" : "Ready to import"}
-                </ThemedText>
-                <ThemedText type="small" style={styles.uploadSubtitle}>
-                 Upload and choose what to share.
-                </ThemedText>
-              </View>
-            </View>
-
-            <View style={styles.requirements}>
-              <View style={styles.requirementPill}>
-                <Ionicons
-                  name="archive-outline"
-                  size={14}
-                  color={colors.primaryTeal}
-                />
-                <ThemedText style={styles.requirementText}>
-                  .zip archive
-                </ThemedText>
-              </View>
-              <View style={styles.requirementPill}>
-                <Ionicons
-                  name="checkmark-circle-outline"
-                  size={14}
-                  color={colors.primaryTeal}
-                />
-                <ThemedText style={styles.requirementText}>
-                  Keep it unmodified
-                </ThemedText>
-              </View>
-            </View>
-
+          <View style={styles.importPanel}>
             {busy ? (
               <View
                 accessibilityLiveRegion="polite"
                 accessibilityRole="alert"
-                style={styles.importingNotice}
+                style={styles.processingState}
               >
-                <Ionicons
-                  name="hourglass-outline"
-                  size={18}
-                  color={colors.primaryTeal}
-                />
-                <View style={styles.importingNoticeCopy}>
-                  <ThemedText type="smallBold" style={styles.importingNoticeTitle}>
-                    This may take a few minutes
-                  </ThemedText>
-                  <ThemedText type="small" style={styles.importingNoticeText}>
-                    Please keep the app open and don&apos;t close it while we process
-                    your archive.
+                <View style={styles.processingHeader}>
+                  <View style={styles.processingIndicator}>
+                    <ActivityIndicator
+                      color={colors.loader}
+                      size="small"
+                    />
+                  </View>
+                  <View style={styles.processingCopy}>
+                    <ThemedText
+                      type="smallBold"
+                      style={styles.processingTitle}
+                    >
+                      Processing your archive
+                    </ThemedText>
+                    <ThemedText type="small" style={styles.processingText}>
+                      This can take a few minutes.
+                    </ThemedText>
+                  </View>
+                </View>
+                <View style={styles.keepOpenNote}>
+                  <Ionicons
+                    name="phone-portrait-outline"
+                    size={16}
+                    color={colors.primaryTeal}
+                  />
+                  <ThemedText type="small" style={styles.keepOpenText}>
+                    Keep Portibilify open until the import is complete.
                   </ThemedText>
                 </View>
               </View>
-            ) : null}
+            ) : (
+              <>
+                <View style={styles.importIntro}>
+                  <View style={styles.importIcon}>
+                    <Ionicons
+                      name="archive-outline"
+                      size={20}
+                      color={colors.primaryTeal}
+                    />
+                  </View>
+                  <View style={styles.importCopy}>
+                    <ThemedText type="smallBold" style={styles.importTitle}>
+                      Choose your export file
+                    </ThemedText>
+                    <View style={styles.fileMeta}>
+                      <ThemedText type="small" style={styles.fileMetaText}>
+                        .zip archive
+                      </ThemedText>
+                      <View style={styles.metaDot} />
+                      <ThemedText type="small" style={styles.fileMetaText}>
+                        Keep unmodified
+                      </ThemedText>
+                    </View>
+                  </View>
+                </View>
 
-            <PrimaryButton
-              label={busy ? "Importing and refining…" : "Choose export file"}
-              icon="folder-open-outline"
-              loading={busy}
-              loadingLabel="Importing and refining…"
-              disabled={busy}
-              onPress={() => {
-                void pickAndImport();
-              }}
-            />
+                <PrimaryButton
+                  label="Choose export file"
+                  icon="folder-open-outline"
+                  onPress={() => {
+                    void pickAndImport();
+                  }}
+                />
 
-            <View style={styles.guideDivider} />
-            <Pressable
-              accessibilityRole="button"
-              hitSlop={6}
-              onPress={() => setActiveSource(selectedSource)}
-              style={({ pressed }) => [
-                styles.helpRow,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Ionicons
-                name="help-circle-outline"
-                size={17}
-                color={colors.primaryTeal}
-              />
-              <ThemedText type="smallBold" style={styles.helpText}>
-                How to export from {selectedSource.name}
-              </ThemedText>
-              <Ionicons
-                name="arrow-forward"
-                size={15}
-                color={colors.primaryTeal}
-              />
-            </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  hitSlop={6}
+                  onPress={() => setActiveSource(selectedSource)}
+                  style={({ pressed }) => [
+                    styles.helpRow,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <Ionicons
+                    name="help-circle-outline"
+                    size={17}
+                    color={colors.primaryTeal}
+                  />
+                  <ThemedText type="smallBold" style={styles.helpText}>
+                    How to export from {selectedSource.name}
+                  </ThemedText>
+                  <Ionicons
+                    name="chevron-forward"
+                    size={15}
+                    color={colors.glassMuted}
+                  />
+                </Pressable>
+              </>
+            )}
           </View>
         </View>
 
-        <View style={styles.privacyCard}>
-          <View style={styles.privacyIcon}>
-            <Ionicons
-              name="shield-checkmark-outline"
-              size={20}
-              color={colors.primaryTeal}
-            />
-          </View>
-          <View style={styles.privacyCopy}>
-            <ThemedText selectable type="smallBold" style={styles.privacyTitle}>
-              We don&apos;t collect your personal data
-            </ThemedText>
-            <ThemedText selectable type="small" style={styles.privacyText}>
-              Names, emails, phone numbers, addresses, and locations are
-              filtered before processing. Your archive stays on this device.
-            </ThemedText>
-          </View>
+        <View style={styles.privacyNote}>
+          <Ionicons
+            name="shield-checkmark-outline"
+            size={17}
+            color={colors.primaryTeal}
+          />
+          <ThemedText selectable type="small" style={styles.privacyText}>
+            Your archive stays on this device. Personal identifiers are
+            filtered before processing.
+          </ThemedText>
         </View>
 
         {error ? <AuthNotice message={error} /> : null}
@@ -641,216 +808,182 @@ export default function SourcesScreen() {
 
 function createStyles(c: AppPalette) {
   return StyleSheet.create({
-    stepSection: {
-      gap: Spacing.three,
+    sourceSection: {
+      gap: Spacing.two,
     },
-    stepHeader: {
-      alignItems: "center",
-      flexDirection: "row",
-      gap: Spacing.three,
-    },
-    stepBadge: {
-      alignItems: "center",
-      backgroundColor: c.primaryTeal,
-      borderRadius: 999,
-      height: 28,
-      justifyContent: "center",
-      width: 28,
-    },
-    stepNumber: {
-      color: "#ffffff",
-      fontSize: 12,
-      fontWeight: "800",
-    },
-    stepCopy: {
-      flex: 1,
-      gap: 1,
-    },
-    stepTitle: {
+    sectionLabel: {
       color: c.glassText,
-      fontSize: 16,
+      fontSize: 13,
     },
-    stepSubtitle: {
+    sectionHint: {
       color: c.glassMuted,
-      fontSize: 12,
+      fontSize: 11,
     },
-    providerCard: {
+    sourceSelector: {
       alignItems: "center",
       backgroundColor: c.surface,
-      borderColor: c.cardBorder,
+      borderColor: c.fieldBorder,
       borderCurve: "continuous",
-      borderRadius: 20,
+      borderRadius: 16,
       borderWidth: 1,
       flexDirection: "row",
-      gap: Spacing.three,
-      padding: Spacing.three,
+      gap: Spacing.two,
+      minHeight: 66,
+      paddingHorizontal: Spacing.three,
+      paddingVertical: Spacing.two,
     },
     cardPressed: {
       opacity: 0.72,
       transform: [{ scale: 0.99 }],
     },
-    providerIcon: {
+    sourceIcon: {
       alignItems: "center",
       borderCurve: "continuous",
-      borderRadius: 15,
-      height: 48,
+      borderRadius: 12,
+      height: 40,
       justifyContent: "center",
-      width: 48,
+      width: 40,
     },
-    providerCopy: {
+    sourceCopy: {
       flex: 1,
       gap: 1,
       minWidth: 0,
     },
-    providerName: {
+    sourceName: {
       color: c.glassText,
-      fontSize: 16,
+      fontSize: 14,
     },
-    providerDescription: {
-      color: c.glassMuted,
-      fontSize: 12,
-    },
-    changeButton: {
-      alignItems: "center",
-      backgroundColor: c.lightTealBackground,
-      borderRadius: 999,
-      flexDirection: "row",
-      gap: 3,
-      paddingHorizontal: 10,
-      paddingVertical: 7,
-    },
-    changeText: {
-      color: c.primaryTeal,
-      fontSize: 12,
-    },
-    uploadCard: {
-      backgroundColor: c.surface,
-      borderColor: c.cardBorder,
-      borderCurve: "continuous",
-      borderRadius: 22,
-      borderWidth: 1,
-      gap: Spacing.three,
-      padding: Spacing.three,
-    },
-    uploadHero: {
-      alignItems: "center",
-      flexDirection: "row",
-      gap: Spacing.three,
-    },
-    uploadIcon: {
-      alignItems: "center",
-      backgroundColor: c.lightTealBackground,
-      borderCurve: "continuous",
-      borderRadius: 17,
-      height: 56,
-      justifyContent: "center",
-      width: 56,
-    },
-    uploadCopy: {
-      flex: 1,
-      gap: 2,
-    },
-    uploadTitle: {
-      color: c.glassText,
-      fontSize: 16,
-    },
-    uploadSubtitle: {
-      color: c.glassMuted,
-      fontSize: 12,
-      lineHeight: 17,
-    },
-    requirements: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: Spacing.two,
-    },
-    requirementPill: {
-      alignItems: "center",
-      backgroundColor: c.noteSurface,
-      borderColor: c.noteBorder,
-      borderRadius: 999,
-      borderWidth: 1,
-      flexDirection: "row",
-      gap: Spacing.one,
-      paddingHorizontal: 10,
-      paddingVertical: 6,
-    },
-    requirementText: {
+    sourceDescription: {
       color: c.glassMuted,
       fontSize: 11,
-      fontWeight: "700",
     },
-    importingNotice: {
-      alignItems: "flex-start",
-      backgroundColor: c.lightTealBackground,
-      borderColor: c.noteBorder,
-      borderCurve: "continuous",
-      borderRadius: 14,
-      borderWidth: 1,
+    importSection: {
+      gap: Spacing.two,
+    },
+    importHeading: {
+      alignItems: "baseline",
       flexDirection: "row",
       gap: Spacing.two,
+      justifyContent: "space-between",
+    },
+    importPanel: {
+      backgroundColor: c.surface,
+      borderColor: c.fieldBorder,
+      borderCurve: "continuous",
+      borderRadius: 18,
+      borderWidth: 1,
+      gap: Spacing.three,
       padding: Spacing.three,
     },
-    importingNoticeCopy: {
+    importIntro: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: Spacing.two,
+    },
+    importIcon: {
+      alignItems: "center",
+      backgroundColor: c.lightTealBackground,
+      borderCurve: "continuous",
+      borderRadius: 11,
+      height: 38,
+      justifyContent: "center",
+      width: 38,
+    },
+    importCopy: {
       flex: 1,
       gap: Spacing.half,
+      minWidth: 0,
     },
-    importingNoticeTitle: {
+    importTitle: {
       color: c.glassText,
-      fontSize: 13,
+      fontSize: 14,
     },
-    importingNoticeText: {
+    fileMeta: {
+      alignItems: "center",
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: Spacing.one,
+    },
+    fileMetaText: {
       color: c.glassMuted,
-      fontSize: 12,
-      lineHeight: 17,
+      fontSize: 10,
     },
-    guideDivider: {
-      backgroundColor: c.fieldBorder,
-      height: StyleSheet.hairlineWidth,
+    metaDot: {
+      backgroundColor: c.glassMuted,
+      borderRadius: 999,
+      height: 3,
+      opacity: 0.6,
+      width: 3,
+    },
+    processingState: {
+      gap: Spacing.three,
+    },
+    processingHeader: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: Spacing.three,
+    },
+    processingIndicator: {
+      alignItems: "center",
+      backgroundColor: c.lightTealBackground,
+      borderCurve: "continuous",
+      borderRadius: 14,
+      height: 48,
+      justifyContent: "center",
+      width: 48,
+    },
+    processingCopy: {
+      flex: 1,
+      gap: Spacing.half,
+      minWidth: 0,
+    },
+    processingTitle: {
+      color: c.glassText,
+      fontSize: 14,
+    },
+    processingText: {
+      color: c.glassMuted,
+      fontSize: 11,
+    },
+    keepOpenNote: {
+      alignItems: "center",
+      backgroundColor: c.noteSurface,
+      borderCurve: "continuous",
+      borderRadius: 12,
+      flexDirection: "row",
+      gap: Spacing.two,
+      paddingHorizontal: Spacing.three,
+      paddingVertical: Spacing.two,
+    },
+    keepOpenText: {
+      color: c.glassMuted,
+      flex: 1,
+      fontSize: 11,
+      lineHeight: 16,
     },
     helpRow: {
       alignItems: "center",
       flexDirection: "row",
       gap: Spacing.two,
-      justifyContent: "center",
+      justifyContent: "flex-start",
       paddingVertical: Spacing.one,
     },
     helpText: {
       color: c.primaryTeal,
-      fontSize: 13,
-    },
-    privacyCard: {
-      alignItems: "center",
-      backgroundColor: c.noteSurface,
-      borderColor: c.noteBorder,
-      borderCurve: "continuous",
-      borderRadius: 18,
-      borderWidth: 1,
-      flexDirection: "row",
-      gap: Spacing.three,
-      padding: Spacing.three,
-    },
-    privacyIcon: {
-      alignItems: "center",
-      backgroundColor: c.surface,
-      borderCurve: "continuous",
-      borderRadius: 13,
-      height: 42,
-      justifyContent: "center",
-      width: 42,
-    },
-    privacyCopy: {
       flex: 1,
-      gap: 1,
-    },
-    privacyTitle: {
-      color: c.glassText,
       fontSize: 13,
+    },
+    privacyNote: {
+      alignItems: "flex-start",
+      flexDirection: "row",
+      gap: Spacing.two,
+      paddingHorizontal: Spacing.one,
     },
     privacyText: {
       color: c.glassMuted,
-      fontSize: 12,
-      lineHeight: 17,
+      flex: 1,
+      fontSize: 11,
+      lineHeight: 16,
     },
     modalSheet: {
       backgroundColor: c.modalSurface,
@@ -916,52 +1049,142 @@ function createStyles(c: AppPalette) {
       backgroundColor: c.surfaceGlassBorder,
       height: StyleSheet.hairlineWidth,
     },
-    resultHero: {
-      alignItems: "center",
-      backgroundColor: c.surface,
-      borderColor: c.fieldBorder,
-      borderCurve: "continuous",
-      borderRadius: 18,
-      borderWidth: 1,
-      flexDirection: "row",
-      gap: Spacing.three,
-      padding: Spacing.three,
-    },
-    resultHeroIcon: {
-      alignItems: "center",
-      backgroundColor: c.lightTealBackground,
-      borderCurve: "continuous",
-      borderRadius: 13,
-      height: 44,
-      justifyContent: "center",
-      width: 44,
-    },
-    resultHeroCopy: { flex: 1, gap: Spacing.half },
-    resultHeroTitle: { color: c.glassText, fontSize: 16 },
-    resultHeroText: { color: c.glassMuted, fontSize: 12, lineHeight: 18 },
     resultFooter: {
-      alignItems: "center",
       alignSelf: "center",
-      flexDirection: "row",
       gap: Spacing.three,
       maxWidth: 800,
       paddingBottom: Spacing.two,
       width: "100%",
     },
-    selectedSummary: {
+    consentRow: {
       alignItems: "center",
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: Spacing.one,
+      paddingHorizontal: Spacing.one,
+    },
+    consentToggle: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: Spacing.two,
+      minHeight: 32,
+    },
+    consentCheckbox: {
+      alignItems: "center",
+      backgroundColor: c.fieldSurface,
+      borderColor: c.inputBorder,
+      borderCurve: "continuous",
+      borderRadius: 7,
+      borderWidth: 1.5,
+      height: 22,
       justifyContent: "center",
-      minWidth: 72,
+      width: 22,
     },
-    selectedFooterCount: {
-      color: c.glassText,
-      fontSize: 24,
-      fontVariant: ["tabular-nums"],
-      lineHeight: 28,
+    consentCheckboxChecked: {
+      backgroundColor: c.primaryTeal,
+      borderColor: c.primaryTeal,
     },
-    selectedFooterLabel: {
+    consentText: {
       color: c.glassMuted,
-      fontSize: 11,
+      fontSize: 12,
+    },
+    consentLink: {
+      borderBottomColor: c.primaryTeal,
+      // borderBottomWidth: StyleSheet.hairlineWidth,
+      justifyContent: "center",
+      minHeight: 32,
+    },
+    consentLinkText: {
+      color: c.primaryTeal,
+      fontSize: 12,
+    },
+    footerActions: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: Spacing.three,
+      width: "100%",
+    },
+    consentModal: {
+      borderCurve: "continuous",
+      borderRadius: 24,
+      gap: Spacing.three,
+      padding: Spacing.four,
+    },
+    consentModalIcon: {
+      alignItems: "center",
+      alignSelf: "center",
+      backgroundColor: c.lightTealBackground,
+      borderColor: c.modalBorder,
+      borderRadius: 999,
+      borderWidth: 1,
+      height: 56,
+      justifyContent: "center",
+      width: 56,
+    },
+    consentModalTitle: {
+      color: c.glassText,
+      fontSize: 20,
+      textAlign: "center",
+    },
+    consentModalText: {
+      color: c.glassMuted,
+      fontSize: 13,
+      lineHeight: 20,
+      textAlign: "center",
+    },
+    consentTerms: {
+      backgroundColor: c.noteSurface,
+      borderColor: c.noteBorder,
+      borderCurve: "continuous",
+      borderRadius: 14,
+      borderWidth: 1,
+      gap: Spacing.three,
+      padding: Spacing.three,
+    },
+    consentTermRow: {
+      alignItems: "flex-start",
+      flexDirection: "row",
+      gap: Spacing.two,
+    },
+    consentTermText: {
+      color: c.glassText,
+      flex: 1,
+      fontSize: 12,
+      lineHeight: 18,
+    },
+    acceptConsentButton: {
+      alignItems: "center",
+      backgroundColor: c.buttonPrimary,
+      borderCurve: "continuous",
+      borderRadius: 14,
+      flexDirection: "row",
+      gap: Spacing.two,
+      justifyContent: "center",
+      minHeight: 54,
+      width: "100%",
+    },
+    acceptConsentButtonPressed: {
+      opacity: 0.88,
+      transform: [{ scale: 0.99 }],
+    },
+    acceptConsentText: {
+      color: "#ffffff",
+      fontSize: 15,
+    },
+    cancelConsentButton: {
+      alignItems: "center",
+      backgroundColor: "transparent",
+      borderColor: c.inputBorder,
+      borderCurve: "continuous",
+      borderRadius: 14,
+      borderWidth: 1,
+      justifyContent: "center",
+      minHeight: 52,
+      width: "100%",
+    },
+    cancelConsentText: {
+      color: c.primaryTeal,
+      fontSize: 14,
     },
     footerButton: { flex: 1 },
     resultTitleGroup: {
@@ -1015,24 +1238,25 @@ function createStyles(c: AppPalette) {
     },
     chat: {
       alignItems: "center",
+      borderColor: "transparent",
       borderCurve: "continuous",
       borderRadius: 14,
+      borderWidth: 1,
       flexDirection: "row",
       gap: Spacing.two,
       paddingHorizontal: Spacing.two,
-      paddingVertical: Spacing.half,
+      paddingVertical: Spacing.one,
     },
     chatSelected: {
       backgroundColor: c.noteSurface,
-      borderCurve: "continuous",
-      borderRadius: 14,
+      borderColor: c.noteBorder,
     },
     chatSelectArea: {
       alignItems: "center",
       flex: 1,
       flexDirection: "row",
       gap: Spacing.three,
-      minHeight: 44,
+      minHeight: 52,
       minWidth: 0,
     },
     checkbox: {
@@ -1040,12 +1264,11 @@ function createStyles(c: AppPalette) {
       backgroundColor: c.fieldSurface,
       borderColor: c.inputBorder,
       borderCurve: "continuous",
-      borderRadius: 8,
-      borderWidth: 1.25,
-      height: 24,
+      borderRadius: 7,
+      borderWidth: 1.5,
+      height: 22,
       justifyContent: "center",
-      minWidth: 24,
-      paddingHorizontal: Spacing.one,
+      width: 22,
     },
     checkboxOn: {
       backgroundColor: c.primaryTeal,
@@ -1056,23 +1279,57 @@ function createStyles(c: AppPalette) {
       borderColor: c.fieldBorder,
       opacity: 0.55,
     },
-    promptCount: {
-      color: c.glassMuted,
-      fontSize: 10,
-      fontVariant: ["tabular-nums"],
-      fontWeight: "800",
-      lineHeight: 13,
-    },
-    promptCountSelected: {
-      color: "#ffffff",
-    },
     chatCopy: {
       flex: 1,
+      gap: 1,
       minWidth: 0,
     },
     chatTitle: {
       color: c.glassText,
       fontSize: 14,
+    },
+    chatMeta: {
+      color: c.glassMuted,
+      fontSize: 11,
+      fontVariant: ["tabular-nums"],
+      lineHeight: 14,
+    },
+    chatMetaRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: Spacing.one,
+    },
+    redactedBadge: {
+      alignItems: "center",
+      backgroundColor: c.lightTealBackground,
+      borderRadius: 999,
+      flexDirection: "row",
+      gap: Spacing.half,
+      paddingHorizontal: Spacing.two,
+      paddingVertical: 2,
+    },
+    redactedBadgeText: {
+      color: c.primaryTeal,
+      fontSize: 9,
+      lineHeight: 12,
+    },
+    excludedBadge: {
+      alignItems: "center",
+      backgroundColor: c.fieldSurface,
+      borderColor: c.fieldBorder,
+      borderRadius: 999,
+      borderWidth: 1,
+      flexDirection: "row",
+      gap: Spacing.half,
+      paddingHorizontal: Spacing.two,
+      paddingVertical: 1,
+    },
+    excludedBadgeText: {
+      color: c.danger,
+      fontSize: 9,
+      fontVariant: ["tabular-nums"],
+      lineHeight: 12,
     },
     viewButton: {
       alignItems: "center",

@@ -92,8 +92,9 @@ export function AppScreen({
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={onRefresh}
-                tintColor={colors.primaryTeal}
-                colors={[colors.primaryTeal]}
+                tintColor={colors.loader}
+                colors={[colors.loader]}
+                progressBackgroundColor={colors.loaderSurface}
               />
             ) : undefined
           }

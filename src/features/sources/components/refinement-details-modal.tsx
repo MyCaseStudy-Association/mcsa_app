@@ -5,7 +5,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { SmoothModal } from "@/components/ui/smooth-modal";
 import { ThemedText } from "@/components/ui/themed-text";
-import { FormattedMessage } from "@/features/sources/components/formatted-message";
+import {
+  cleanMessageForDisplay,
+  FormattedMessage,
+} from "@/features/sources/components/formatted-message";
 import type { PromptRefinementResult } from "@/features/sources/services/prompt-refinement";
 import { AppPalette, Spacing } from "@/theme/theme";
 import { useColors } from "@/theme/theme-provider";
@@ -51,9 +54,15 @@ export function RefinementDetailsModal({
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [displayedKind, setDisplayedKind] =
     useState<RefinementDetailKind>("chats");
+  const [expandedPromptIds, setExpandedPromptIds] = useState<Set<string>>(
+    new Set(),
+  );
 
   useEffect(() => {
-    if (kind) setDisplayedKind(kind);
+    if (kind) {
+      setDisplayedKind(kind);
+      setExpandedPromptIds(new Set());
+    }
   }, [kind]);
 
   const copy = COPY[displayedKind];
@@ -99,49 +108,170 @@ export function RefinementDetailsModal({
         contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
       >
-        {displayedKind === "chats"
-          ? result.sessions.map((session) => (
-              <View key={session.id} style={styles.detailCard}>
-                <View style={styles.cardHeading}>
-                  <View style={styles.iconBox}>
+        {displayedKind === "chats" && result.sessions.length > 0 ? (
+          <View style={styles.chatList}>
+            {result.sessions.map((session, index) => {
+              const wasRedacted =
+                session.redactionCount > 0 || session.titleRedacted;
+
+              return (
+                <View
+                  key={session.id}
+                  style={[
+                    styles.chatRow,
+                    index > 0 && styles.chatRowDivider,
+                  ]}
+                >
+                  <View style={styles.chatIcon}>
                     <Ionicons
-                      name="chatbox-ellipses-outline"
-                      size={18}
+                      name="chatbox-outline"
+                      size={16}
                       color={colors.primaryTeal}
                     />
                   </View>
-                  <ThemedText
-                    selectable
-                    numberOfLines={2}
-                    type="smallBold"
-                    style={styles.cardTitle}
-                  >
-                    {session.title}
-                  </ThemedText>
+                  <View style={styles.chatCopy}>
+                    <ThemedText
+                      selectable
+                      numberOfLines={2}
+                      type="smallBold"
+                      style={styles.chatTitle}
+                    >
+                      {session.title}
+                    </ThemedText>
+                    <View style={styles.chatMetaRow}>
+                      <ThemedText selectable type="small" style={styles.chatMeta}>
+                        {session.inputPromptCount} input
+                      </ThemedText>
+                      <View style={styles.chatMetaDot} />
+                      <ThemedText selectable type="small" style={styles.chatMeta}>
+                        {session.refinedPromptCount} refined
+                      </ThemedText>
+                    </View>
+                    {wasRedacted || session.excludedPromptCount > 0 ? (
+                      <View style={styles.chatBadgeRow}>
+                        {wasRedacted ? (
+                          <View style={styles.redactedBadge}>
+                            <Ionicons
+                              name="shield-checkmark-outline"
+                              size={11}
+                              color={colors.primaryTeal}
+                            />
+                            <ThemedText
+                              type="smallBold"
+                              style={styles.redactedBadgeText}
+                            >
+                              Redacted
+                            </ThemedText>
+                          </View>
+                        ) : null}
+                        {session.excludedPromptCount > 0 ? (
+                          <View style={styles.excludedBadge}>
+                            <Ionicons
+                              name="eye-off-outline"
+                              size={11}
+                              color={colors.danger}
+                            />
+                            <ThemedText
+                              selectable
+                              type="smallBold"
+                              style={styles.excludedBadgeText}
+                            >
+                              {session.excludedPromptCount} excluded
+                            </ThemedText>
+                          </View>
+                        ) : null}
+                      </View>
+                    ) : null}
+                  </View>
                 </View>
-                <View style={styles.metricRow}>
-                  <Metric label="Input" value={session.inputPromptCount} styles={styles} />
-                  <Metric label="Refined" value={session.refinedPromptCount} styles={styles} />
-                  <Metric label="Excluded" value={session.excludedPromptCount} styles={styles} />
-                  <Metric label="Changes" value={session.redactionCount} styles={styles} />
-                </View>
-              </View>
-            ))
-          : null}
+              );
+            })}
+          </View>
+        ) : null}
 
-        {displayedKind === "refined"
-          ? result.prompts.map((prompt, index) => (
-              <View key={prompt.id} style={styles.detailCard}>
-                <CardMeta
-                  label={`Prompt ${index + 1}`}
-                  sessionTitle={prompt.sessionTitle}
-                  styles={styles}
-                />
-                <FormattedMessage text={prompt.refinedText} />
-                <TagRow tags={prompt.redactionTypes} styles={styles} />
-              </View>
-            ))
-          : null}
+        {displayedKind === "refined" && result.prompts.length > 0 ? (
+          <View style={styles.refinedList}>
+            {result.prompts.map((prompt, index) => {
+              const cleanText = cleanMessageForDisplay(prompt.refinedText);
+              const canExpand =
+                cleanText.length > 260 || cleanText.split("\n").length > 5;
+              const isExpanded = expandedPromptIds.has(prompt.id);
+
+              return (
+                <View
+                  key={prompt.id}
+                  style={[
+                    styles.refinedRow,
+                    index > 0 && styles.refinedRowDivider,
+                  ]}
+                >
+                  <View style={styles.promptNumber}>
+                    <ThemedText
+                      selectable
+                      type="smallBold"
+                      style={styles.promptNumberText}
+                    >
+                      {index + 1}
+                    </ThemedText>
+                  </View>
+                  <View style={styles.refinedCopy}>
+                    <ThemedText
+                      selectable
+                      type="small"
+                      style={styles.refinedSession}
+                    >
+                      {prompt.sessionTitle}
+                    </ThemedText>
+                    <View style={styles.formattedPrompt}>
+                      {canExpand && !isExpanded ? (
+                        <ThemedText
+                          selectable
+                          ellipsizeMode="tail"
+                          numberOfLines={5}
+                          style={styles.refinedPreview}
+                        >
+                          {cleanText}
+                        </ThemedText>
+                      ) : (
+                        <FormattedMessage text={prompt.refinedText} />
+                      )}
+                    </View>
+                    {canExpand ? (
+                      <Pressable
+                        accessibilityLabel={`${
+                          isExpanded ? "Show less of" : "View more of"
+                        } prompt ${index + 1}`}
+                        accessibilityRole="button"
+                        onPress={() =>
+                          setExpandedPromptIds((current) =>
+                            toggleExpanded(current, prompt.id),
+                          )
+                        }
+                        style={({ pressed }) => [
+                          styles.viewMoreButton,
+                          pressed && styles.pressed,
+                        ]}
+                      >
+                        <ThemedText
+                          type="smallBold"
+                          style={styles.viewMoreText}
+                        >
+                          {isExpanded ? "Show less" : "View more"}
+                        </ThemedText>
+                        <Ionicons
+                          name={isExpanded ? "chevron-up" : "chevron-down"}
+                          size={13}
+                          color={colors.primaryTeal}
+                        />
+                      </Pressable>
+                    ) : null}
+                    <TagRow tags={prompt.redactionTypes} styles={styles} />
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        ) : null}
 
         {displayedKind === "excluded"
           ? result.excludedPrompts.map((prompt, index) => (
@@ -164,32 +294,159 @@ export function RefinementDetailsModal({
             ))
           : null}
 
-        {displayedKind === "redactions"
-          ? redactedPrompts.map((prompt, index) => (
-              <View key={prompt.id} style={styles.detailCard}>
-                <CardMeta
-                  label={`${prompt.redactionCount} ${prompt.redactionCount === 1 ? "change" : "changes"}`}
-                  sessionTitle={prompt.sessionTitle}
-                  styles={styles}
-                />
-                <View style={styles.compareBlock}>
-                  <ThemedText type="smallBold" style={styles.compareLabel}>
-                    Original
-                  </ThemedText>
-                  <ThemedText selectable style={styles.originalText}>
-                    {prompt.originalText}
-                  </ThemedText>
+        {displayedKind === "redactions" && redactedPrompts.length > 0 ? (
+          <View style={styles.changeList}>
+            {redactedPrompts.map((prompt, index) => {
+              const cleanOriginal = cleanMessageForDisplay(prompt.originalText);
+              const cleanRefined = cleanMessageForDisplay(prompt.refinedText);
+              const canExpand =
+                cleanOriginal.length > 220 ||
+                cleanRefined.length > 220 ||
+                cleanOriginal.split("\n").length > 4 ||
+                cleanRefined.split("\n").length > 4;
+              const isExpanded = expandedPromptIds.has(prompt.id);
+
+              return (
+                <View key={prompt.id} style={styles.changeCard}>
+                  <View style={styles.changeHeader}>
+                    <View style={styles.changeHeaderIcon}>
+                      <Ionicons
+                        name="shield-half-outline"
+                        size={18}
+                        color={colors.primaryTeal}
+                      />
+                    </View>
+                    <View style={styles.changeHeaderCopy}>
+                      <ThemedText
+                        type="smallBold"
+                        style={styles.changeEyebrow}
+                      >
+                        Identifier change {index + 1}
+                      </ThemedText>
+                      <ThemedText
+                        selectable
+                        type="small"
+                        style={styles.changeSession}
+                      >
+                        {prompt.sessionTitle}
+                      </ThemedText>
+                    </View>
+                    <View style={styles.changeCountBadge}>
+                      <ThemedText
+                        selectable
+                        type="smallBold"
+                        style={styles.changeCountText}
+                      >
+                        {prompt.redactionCount}{" "}
+                        {prompt.redactionCount === 1 ? "field" : "fields"}
+                      </ThemedText>
+                    </View>
+                  </View>
+
+                  <View style={styles.originalPanel}>
+                    <View style={styles.changePanelLabelRow}>
+                      <Ionicons
+                        name="document-text-outline"
+                        size={13}
+                        color={colors.glassMuted}
+                      />
+                      <ThemedText
+                        type="smallBold"
+                        style={styles.compareLabel}
+                      >
+                        Original
+                      </ThemedText>
+                    </View>
+                    <ThemedText
+                      selectable
+                      ellipsizeMode="tail"
+                      numberOfLines={canExpand && !isExpanded ? 4 : undefined}
+                      style={styles.changeText}
+                    >
+                      {cleanOriginal}
+                    </ThemedText>
+                  </View>
+
+                  <View style={styles.changeTransition}>
+                    <View style={styles.changeTransitionLine} />
+                    <View style={styles.changeTransitionBadge}>
+                      <Ionicons
+                        name="shield-checkmark-outline"
+                        size={13}
+                        color={colors.primaryTeal}
+                      />
+                      <ThemedText
+                        type="smallBold"
+                        style={styles.changeTransitionText}
+                      >
+                        Protected
+                      </ThemedText>
+                    </View>
+                    <View style={styles.changeTransitionLine} />
+                  </View>
+
+                  <View style={styles.safePanel}>
+                    <View style={styles.changePanelLabelRow}>
+                      <Ionicons
+                        name="checkmark-circle-outline"
+                        size={13}
+                        color={colors.primaryTeal}
+                      />
+                      <ThemedText type="smallBold" style={styles.safeLabel}>
+                        Safe version
+                      </ThemedText>
+                    </View>
+                    {canExpand && !isExpanded ? (
+                      <ThemedText
+                        selectable
+                        ellipsizeMode="tail"
+                        numberOfLines={4}
+                        style={styles.changeText}
+                      >
+                        {cleanRefined}
+                      </ThemedText>
+                    ) : (
+                      <FormattedMessage text={prompt.refinedText} />
+                    )}
+                  </View>
+
+                  <View style={styles.changeFooter}>
+                    <TagRow tags={prompt.redactionTypes} styles={styles} />
+                    {canExpand ? (
+                      <Pressable
+                        accessibilityLabel={`${
+                          isExpanded ? "Show less of" : "View more of"
+                        } identifier comparison ${index + 1}`}
+                        accessibilityRole="button"
+                        onPress={() =>
+                          setExpandedPromptIds((current) =>
+                            toggleExpanded(current, prompt.id),
+                          )
+                        }
+                        style={({ pressed }) => [
+                          styles.changeViewMoreButton,
+                          pressed && styles.pressed,
+                        ]}
+                      >
+                        <ThemedText
+                          type="smallBold"
+                          style={styles.viewMoreText}
+                        >
+                          {isExpanded ? "Show less" : "View more"}
+                        </ThemedText>
+                        <Ionicons
+                          name={isExpanded ? "chevron-up" : "chevron-down"}
+                          size={13}
+                          color={colors.primaryTeal}
+                        />
+                      </Pressable>
+                    ) : null}
+                  </View>
                 </View>
-                <View style={styles.compareBlock}>
-                  <ThemedText type="smallBold" style={styles.safeLabel}>
-                    Refined
-                  </ThemedText>
-                  <FormattedMessage text={prompt.refinedText} />
-                </View>
-                <TagRow tags={prompt.redactionTypes} styles={styles} />
-              </View>
-            ))
-          : null}
+              );
+            })}
+          </View>
+        ) : null}
 
         {isEmpty(displayedKind, result, redactedPrompts.length) ? (
           <View style={styles.emptyCard}>
@@ -237,27 +494,6 @@ function CardMeta({
   );
 }
 
-function Metric({
-  label,
-  value,
-  styles,
-}: {
-  label: string;
-  value: number;
-  styles: ScreenStyles;
-}) {
-  return (
-    <View style={styles.metric}>
-      <ThemedText selectable type="smallBold" style={styles.metricValue}>
-        {value}
-      </ThemedText>
-      <ThemedText selectable type="small" style={styles.metricLabel}>
-        {label}
-      </ThemedText>
-    </View>
-  );
-}
-
 function TagRow({ tags, styles }: { tags: string[]; styles: ScreenStyles }) {
   if (tags.length === 0) return null;
   return (
@@ -288,6 +524,16 @@ function formatCategory(category: string) {
   return category.replaceAll("_", " ").toLowerCase();
 }
 
+function toggleExpanded(current: Set<string>, id: string) {
+  const next = new Set(current);
+  if (next.has(id)) {
+    next.delete(id);
+  } else {
+    next.add(id);
+  }
+  return next;
+}
+
 function createStyles(c: AppPalette) {
   return StyleSheet.create({
     screen: { backgroundColor: c.screenBg, flex: 1 },
@@ -313,15 +559,6 @@ function createStyles(c: AppPalette) {
       width: 40,
     },
     content: { gap: Spacing.three, padding: Spacing.three },
-    detailCard: {
-      backgroundColor: c.modalSurface,
-      borderColor: c.cardBorder,
-      borderCurve: "continuous",
-      borderRadius: 18,
-      borderWidth: 1,
-      gap: Spacing.three,
-      padding: Spacing.three,
-    },
     excludedCard: {
       backgroundColor: c.modalSurface,
       borderColor: c.noteBorder,
@@ -331,28 +568,296 @@ function createStyles(c: AppPalette) {
       gap: Spacing.three,
       padding: Spacing.three,
     },
-    cardHeading: { alignItems: "center", flexDirection: "row", gap: Spacing.two },
-    iconBox: {
+    chatList: {
+      backgroundColor: c.modalSurface,
+      borderColor: c.fieldBorder,
+      borderCurve: "continuous",
+      borderRadius: 18,
+      borderWidth: 1,
+      overflow: "hidden",
+    },
+    chatRow: {
+      alignItems: "flex-start",
+      flexDirection: "row",
+      gap: Spacing.three,
+      padding: Spacing.three,
+    },
+    chatRowDivider: {
+      borderTopColor: c.fieldBorder,
+      borderTopWidth: StyleSheet.hairlineWidth,
+    },
+    chatIcon: {
       alignItems: "center",
       backgroundColor: c.lightTealBackground,
-      borderRadius: 11,
-      height: 36,
-      justifyContent: "center",
-      width: 36,
-    },
-    cardTitle: { color: c.glassText, flex: 1, fontSize: 14 },
-    metricRow: { flexDirection: "row", gap: Spacing.one },
-    metric: {
-      alignItems: "center",
-      backgroundColor: c.noteSurface,
       borderRadius: 10,
+      height: 32,
+      justifyContent: "center",
+      width: 32,
+    },
+    chatCopy: {
+      flex: 1,
+      gap: Spacing.one,
+      minWidth: 0,
+    },
+    chatTitle: {
+      color: c.glassText,
+      fontSize: 14,
+      lineHeight: 19,
+    },
+    chatMetaRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: Spacing.half,
+    },
+    chatMeta: {
+      color: c.glassMuted,
+      fontSize: 11,
+      fontVariant: ["tabular-nums"],
+      lineHeight: 15,
+    },
+    chatMetaDot: {
+      backgroundColor: c.glassMuted,
+      borderRadius: 999,
+      height: 3,
+      opacity: 0.6,
+      width: 3,
+    },
+    chatBadgeRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: Spacing.one,
+      paddingTop: Spacing.half,
+    },
+    redactedBadge: {
+      alignItems: "center",
+      backgroundColor: c.lightTealBackground,
+      borderRadius: 999,
+      flexDirection: "row",
+      gap: Spacing.half,
+      paddingHorizontal: Spacing.two,
+      paddingVertical: 3,
+    },
+    redactedBadgeText: {
+      color: c.primaryTeal,
+      fontSize: 9,
+      lineHeight: 12,
+    },
+    excludedBadge: {
+      alignItems: "center",
+      backgroundColor: c.fieldSurface,
+      borderColor: c.fieldBorder,
+      borderRadius: 999,
+      borderWidth: 1,
+      flexDirection: "row",
+      gap: Spacing.half,
+      paddingHorizontal: Spacing.two,
+      paddingVertical: 2,
+    },
+    excludedBadgeText: {
+      color: c.danger,
+      fontSize: 9,
+      fontVariant: ["tabular-nums"],
+      lineHeight: 12,
+    },
+    refinedList: {
+      backgroundColor: c.modalSurface,
+      borderColor: c.fieldBorder,
+      borderCurve: "continuous",
+      borderRadius: 18,
+      borderWidth: 1,
+      overflow: "hidden",
+    },
+    refinedRow: {
+      alignItems: "flex-start",
+      flexDirection: "row",
+      gap: Spacing.three,
+      maxWidth: "100%",
+      minWidth: 0,
+      padding: Spacing.three,
+    },
+    refinedRowDivider: {
+      borderTopColor: c.fieldBorder,
+      borderTopWidth: StyleSheet.hairlineWidth,
+    },
+    promptNumber: {
+      alignItems: "center",
+      backgroundColor: c.lightTealBackground,
+      borderRadius: 999,
+      height: 28,
+      justifyContent: "center",
+      width: 28,
+    },
+    promptNumberText: {
+      color: c.primaryTeal,
+      fontSize: 10,
+      fontVariant: ["tabular-nums"],
+      lineHeight: 13,
+    },
+    refinedCopy: {
+      flex: 1,
+      gap: Spacing.two,
+      maxWidth: "100%",
+      minWidth: 0,
+    },
+    refinedSession: {
+      color: c.glassMuted,
+      fontSize: 11,
+      lineHeight: 15,
+    },
+    formattedPrompt: {
+      alignSelf: "stretch",
+      maxWidth: "100%",
+      minWidth: 0,
+    },
+    refinedPreview: {
+      color: c.glassText,
+      flexShrink: 1,
+      fontSize: 15,
+      lineHeight: 23,
+      maxWidth: "100%",
+    },
+    viewMoreButton: {
+      alignItems: "center",
+      alignSelf: "flex-start",
+      backgroundColor: c.lightTealBackground,
+      borderRadius: 999,
+      flexDirection: "row",
+      gap: Spacing.one,
+      minHeight: 30,
+      paddingHorizontal: Spacing.two,
+    },
+    viewMoreText: {
+      color: c.primaryTeal,
+      fontSize: 10,
+    },
+    changeList: {
+      gap: Spacing.three,
+    },
+    changeCard: {
+      backgroundColor: c.modalSurface,
+      borderColor: c.fieldBorder,
+      borderCurve: "continuous",
+      borderRadius: 20,
+      borderWidth: 1,
+      gap: Spacing.three,
+      maxWidth: "100%",
+      minWidth: 0,
+      padding: Spacing.four,
+    },
+    changeHeader: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: Spacing.two,
+    },
+    changeHeaderIcon: {
+      alignItems: "center",
+      backgroundColor: c.lightTealBackground,
+      borderRadius: 12,
+      height: 38,
+      justifyContent: "center",
+      width: 38,
+    },
+    changeHeaderCopy: {
       flex: 1,
       gap: Spacing.half,
-      paddingHorizontal: Spacing.one,
-      paddingVertical: Spacing.two,
+      minWidth: 0,
     },
-    metricValue: { color: c.glassText, fontSize: 14, fontVariant: ["tabular-nums"] },
-    metricLabel: { color: c.glassMuted, fontSize: 9 },
+    changeEyebrow: {
+      color: c.glassText,
+      fontSize: 12,
+      lineHeight: 15,
+    },
+    changeSession: {
+      color: c.glassMuted,
+      fontSize: 11,
+      lineHeight: 15,
+    },
+    changeCountBadge: {
+      backgroundColor: c.lightTealBackground,
+      borderRadius: 999,
+      flexShrink: 0,
+      paddingHorizontal: Spacing.two,
+      paddingVertical: 3,
+    },
+    changeCountText: {
+      color: c.primaryTeal,
+      fontSize: 9,
+      fontVariant: ["tabular-nums"],
+      lineHeight: 12,
+    },
+    originalPanel: {
+      backgroundColor: c.fieldSurface,
+      borderColor: c.fieldBorder,
+      borderCurve: "continuous",
+      borderRadius: 14,
+      borderWidth: 1,
+      gap: Spacing.two,
+      maxWidth: "100%",
+      minWidth: 0,
+      padding: Spacing.three,
+    },
+    safePanel: {
+      backgroundColor: c.lightTealBackground,
+      borderColor: c.noteBorder,
+      borderCurve: "continuous",
+      borderRadius: 14,
+      borderWidth: 1,
+      gap: Spacing.two,
+      maxWidth: "100%",
+      minWidth: 0,
+      padding: Spacing.three,
+    },
+    changePanelLabelRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: Spacing.one,
+    },
+    changeTransition: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: Spacing.two,
+      paddingHorizontal: Spacing.two,
+    },
+    changeTransitionLine: {
+      backgroundColor: c.fieldBorder,
+      flex: 1,
+      height: StyleSheet.hairlineWidth,
+    },
+    changeTransitionBadge: {
+      alignItems: "center",
+      backgroundColor: c.lightTealBackground,
+      borderRadius: 999,
+      flexDirection: "row",
+      gap: Spacing.one,
+      paddingHorizontal: Spacing.two,
+      paddingVertical: Spacing.one,
+    },
+    changeTransitionText: {
+      color: c.primaryTeal,
+      fontSize: 9,
+      lineHeight: 12,
+    },
+    changeText: {
+      color: c.glassText,
+      flexShrink: 1,
+      fontSize: 14,
+      lineHeight: 21,
+      maxWidth: "100%",
+    },
+    changeFooter: {
+      alignItems: "flex-start",
+      gap: Spacing.two,
+    },
+    changeViewMoreButton: {
+      alignItems: "center",
+      borderColor: c.inputBorder,
+      borderRadius: 999,
+      borderWidth: 1,
+      flexDirection: "row",
+      gap: Spacing.one,
+      minHeight: 32,
+      paddingHorizontal: Spacing.three,
+    },
     cardMeta: {
       alignItems: "center",
       flexDirection: "row",
@@ -367,13 +872,6 @@ function createStyles(c: AppPalette) {
       borderCurve: "continuous",
       borderRadius: 13,
       borderWidth: 1,
-      gap: Spacing.two,
-      padding: Spacing.three,
-    },
-    compareBlock: {
-      backgroundColor: c.noteSurface,
-      borderCurve: "continuous",
-      borderRadius: 13,
       gap: Spacing.two,
       padding: Spacing.three,
     },

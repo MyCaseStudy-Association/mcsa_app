@@ -43,7 +43,7 @@ export function PrimaryButton({
       ]}>
       {loading ? (
         <>
-          <ActivityIndicator color="#ffffff" size="small" />
+          <ActivityIndicator color={colors.loaderOnPrimary} size="small" />
           <ThemedText type="smallBold" style={styles.loadingLabel}>
             {loadingLabel ?? label}
           </ThemedText>

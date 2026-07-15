@@ -76,7 +76,7 @@ export function ConfirmModal({
                 pressed && styles.pressed,
               ]}>
               {loading ? (
-                <ActivityIndicator color="#ffffff" />
+                <ActivityIndicator color={colors.loaderOnPrimary} />
               ) : (
                 <ThemedText type="smallBold" style={styles.confirmText}>
                   {confirmLabel}
