@@ -11,7 +11,6 @@ import { AuthNotice } from "@/features/auth/components/auth-notice";
 import { PrimaryButton } from "@/features/auth/components/primary-button";
 import { useAuth } from "@/features/auth/providers/auth-provider";
 import { ChatViewerModal } from "@/features/sources/components/chat-viewer-modal";
-import { ProcessingInfoModal } from "@/features/sources/components/processing-info-modal";
 import { SourceInfoModal } from "@/features/sources/components/source-info-modal";
 import {
   CHAT_SOURCES,
@@ -22,13 +21,12 @@ import {
   ChatSession,
   ImportResult,
   importChatArchive,
-  providerLabel,
 } from "@/features/sources/services/chat-import";
-import { refineSelectedSessions } from "@/features/sources/services/prompt-refinement";
 import {
-  clearLatestRefinementResult,
-  setLatestRefinementResult,
-} from "@/features/sources/services/refinement-result-store";
+  type PromptRefinementResult,
+  refineSelectedSessions,
+} from "@/features/sources/services/prompt-refinement";
+import RefinedPromptsView from "@/features/sources/screens/refined-prompts-screen";
 import { AppPalette, Spacing } from "@/theme/theme";
 import { useColors } from "@/theme/theme-provider";
 
@@ -45,8 +43,9 @@ export default function SourcesScreen() {
   const [result, setResult] = useState<ImportResult | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [viewing, setViewing] = useState<ChatSession | null>(null);
-  const [processingInfoOpen, setProcessingInfoOpen] = useState(false);
-  const [processing, setProcessing] = useState(false);
+  const [finishing, setFinishing] = useState(false);
+  const [refinementResult, setRefinementResult] =
+    useState<PromptRefinementResult | null>(null);
 
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -75,16 +74,21 @@ export default function SourcesScreen() {
 
     try {
       const imported = await importChatArchive(asset.uri, asset.name);
-      setResult(imported);
-      setSelected(
-        new Set(
-          imported.sessions
-            .filter((session) => session.promptCount > 0)
-            .map((session) => session.id),
-        ),
+      const selectableSessions = imported.sessions.filter(
+        (session) => session.promptCount > 0,
       );
+      const selectedIds = new Set(
+        selectableSessions.map((session) => session.id),
+      );
+      const refined = refineSelectedSessions(selectableSessions, user?.name);
+
+      setResult(imported);
+      setSelected(selectedIds);
+      setRefinementResult(refined);
     } catch (importError) {
       setResult(null);
+      setSelected(new Set());
+      setRefinementResult(null);
       setError(
         importError instanceof ChatImportError
           ? importError.message
@@ -96,15 +100,21 @@ export default function SourcesScreen() {
   }
 
   function toggle(id: string) {
-    setSelected((current) => {
-      const next = new Set(current);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
+    const next = new Set(selected);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    applySelection(next);
+  }
+
+  function applySelection(next: Set<string>) {
+    setSelected(next);
+    if (!result) return;
+
+    const sessions = result.sessions.filter((session) => next.has(session.id));
+    setRefinementResult(refineSelectedSessions(sessions, user?.name));
   }
 
   const selectedCount = result
@@ -114,36 +124,10 @@ export default function SourcesScreen() {
     : selected.size;
 
   function resetImport() {
-    clearLatestRefinementResult();
+    setRefinementResult(null);
     setResult(null);
     setSelected(new Set());
     setError("");
-  }
-
-  async function processSelectedPrompts() {
-    if (!result) return;
-
-    setProcessing(true);
-    setError("");
-    await waitForNextPaint();
-
-    try {
-      const selectedSessions = result.sessions.filter((session) =>
-        selected.has(session.id),
-      );
-      const refinementResult = refineSelectedSessions(
-        selectedSessions,
-        user?.name,
-      );
-      setLatestRefinementResult(refinementResult);
-      setProcessingInfoOpen(false);
-      router.push("/refined-prompts");
-    } catch {
-      setError("Could not refine the selected prompts. Please try again.");
-      setProcessingInfoOpen(false);
-    } finally {
-      setProcessing(false);
-    }
   }
 
   // Review step — hides the source list once an export is loaded.
@@ -157,31 +141,39 @@ export default function SourcesScreen() {
       <>
         <Tabs.Screen options={{ tabBarStyle: { display: "none" } }} />
         <AppScreen
-          title="Select chats"
-          subtitle="Choose the conversations to continue."
+          key="refined-review"
+          title="Review chats & prompts"
+          subtitle="Select chats and review refined prompts together."
           showBrand={false}
           onBack={resetImport}
           footer={
             <View style={styles.resultFooter}>
-              <Pressable
-                accessibilityLabel="Close chat selection"
-                accessibilityRole="button"
-                hitSlop={6}
-                onPress={resetImport}
-                style={({ pressed }) => [
-                  styles.footerCloseButton,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <Ionicons name="close" size={24} color={colors.primaryTeal} />
-              </Pressable>
+              <View style={styles.selectedSummary}>
+                <ThemedText
+                  selectable
+                  type="smallBold"
+                  style={styles.selectedFooterCount}
+                >
+                  {selectedCount}
+                </ThemedText>
+                <ThemedText type="small" style={styles.selectedFooterLabel}>
+                  selected
+                </ThemedText>
+              </View>
               <View style={styles.footerButton}>
                 <PrimaryButton
                   align="left"
-                  label={`Process (${selectedCount})`}
-                  icon="shield-checkmark-outline"
-                  disabled={selectedCount === 0}
-                  onPress={() => setProcessingInfoOpen(true)}
+                  label="Continue"
+                  icon="arrow-forward"
+                  disabled={selectedCount === 0 || !refinementResult}
+                  loading={finishing}
+                  loadingLabel="Opening Home…"
+                  onPress={() => {
+                    setFinishing(true);
+                    requestAnimationFrame(() =>
+                      router.replace("/(tabs)/home"),
+                    );
+                  }}
                 />
               </View>
             </View>
@@ -197,15 +189,22 @@ export default function SourcesScreen() {
             </View>
             <View style={styles.resultHeroCopy}>
               <ThemedText type="smallBold" style={styles.resultHeroTitle}>
-                {selectableSessions.length} chats ready to review
+                {selectedCount} chats refined successfully
               </ThemedText>
               <ThemedText type="small" style={styles.resultHeroText}>
-                Imported from {providerLabel(result.provider)} · Preview before selecting
+                Review the refined prompts and adjust your chat selection below.
               </ThemedText>
             </View>
           </View>
 
           {error ? <AuthNotice message={error} /> : null}
+
+          {refinementResult ? (
+            <>
+              <RefinedPromptsView result={refinementResult} />
+              <View style={styles.resultDivider} />
+            </>
+          ) : null}
 
           <View style={styles.result}>
             <View style={styles.resultHead}>
@@ -222,13 +221,13 @@ export default function SourcesScreen() {
               <Pressable
                 accessibilityRole="button"
                 hitSlop={8}
-                onPress={() =>
-                  setSelected(
+                onPress={() => {
+                  applySelection(
                     allSelected
                       ? new Set()
                       : new Set(selectableSessions.map((session) => session.id)),
-                  )
-                }
+                  );
+                }}
                 style={({ pressed }) => [
                   styles.selectAllButton,
                   pressed && styles.pressed,
@@ -340,15 +339,6 @@ export default function SourcesScreen() {
           </View>
 
           <ChatViewerModal session={viewing} onClose={() => setViewing(null)} />
-          <ProcessingInfoModal
-            loading={processing}
-            selectedCount={selectedCount}
-            visible={processingInfoOpen}
-            onClose={() => setProcessingInfoOpen(false)}
-            onConfirm={() => {
-              void processSelectedPrompts();
-            }}
-          />
         </AppScreen>
       </>
     );
@@ -453,7 +443,7 @@ export default function SourcesScreen() {
               </View>
               <View style={styles.uploadCopy}>
                 <ThemedText type="smallBold" style={styles.uploadTitle}>
-                  {busy ? "Reading your archive…" : "Ready to import"}
+                  {busy ? "Importing and refining…" : "Ready to import"}
                 </ThemedText>
                 <ThemedText type="small" style={styles.uploadSubtitle}>
                  Upload and choose what to share.
@@ -508,10 +498,10 @@ export default function SourcesScreen() {
             ) : null}
 
             <PrimaryButton
-              label={busy ? "Reading archive…" : "Choose export file"}
+              label={busy ? "Importing and refining…" : "Choose export file"}
               icon="folder-open-outline"
               loading={busy}
-              loadingLabel="Reading archive…"
+              loadingLabel="Importing and refining…"
               disabled={busy}
               onPress={() => {
                 void pickAndImport();
@@ -647,12 +637,6 @@ export default function SourcesScreen() {
       </AppScreen>
     </>
   );
-}
-
-function waitForNextPaint() {
-  return new Promise<void>((resolve) => {
-    requestAnimationFrame(() => resolve());
-  });
 }
 
 function createStyles(c: AppPalette) {
@@ -928,6 +912,10 @@ function createStyles(c: AppPalette) {
     result: {
       gap: Spacing.three,
     },
+    resultDivider: {
+      backgroundColor: c.surfaceGlassBorder,
+      height: StyleSheet.hairlineWidth,
+    },
     resultHero: {
       alignItems: "center",
       backgroundColor: c.surface,
@@ -960,16 +948,20 @@ function createStyles(c: AppPalette) {
       paddingBottom: Spacing.two,
       width: "100%",
     },
-    footerCloseButton: {
+    selectedSummary: {
       alignItems: "center",
-      backgroundColor: c.noteSurface,
-      borderColor: c.noteBorder,
-      borderCurve: "continuous",
-      borderRadius: 14,
-      borderWidth: 1,
-      height: 56,
       justifyContent: "center",
-      width: 56,
+      minWidth: 72,
+    },
+    selectedFooterCount: {
+      color: c.glassText,
+      fontSize: 24,
+      fontVariant: ["tabular-nums"],
+      lineHeight: 28,
+    },
+    selectedFooterLabel: {
+      color: c.glassMuted,
+      fontSize: 11,
     },
     footerButton: { flex: 1 },
     resultTitleGroup: {

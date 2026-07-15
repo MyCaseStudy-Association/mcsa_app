@@ -1,6 +1,6 @@
 import type { ChatSession } from "@/features/sources/services/chat-import";
 
-export const RULESET_VERSION = "0.3-draft";
+export const RULESET_VERSION = "0.5-draft";
 
 type IdentifierRule = {
   id: string;
@@ -11,10 +11,15 @@ type IdentifierRule = {
   preserveLeadingGroup?: boolean;
 };
 
-type CategoryRule = {
+export type CategoryRule = {
   id: string;
-  keywords: string[];
-  patterns?: RegExp[];
+  excludeKeywords?: string[];
+  excludePatterns?: RegExp[];
+  flagKeywords?: string[];
+  flagPatterns?: RegExp[];
+  externalLists?: string[];
+  basis: string[];
+  note?: string;
 };
 
 export type RefinedPrompt = {
@@ -241,97 +246,297 @@ const ORDERED_IDENTIFIERS = [...IDENTIFIERS].sort(
     IDENTIFIER_PROCESSING_ORDER.indexOf(right.id),
 );
 
-const SENSITIVE_CATEGORIES: CategoryRule[] = [
+export const SENSITIVE_CATEGORIES: CategoryRule[] = [
   {
     id: "health",
-    keywords: [
-      "diagnosed", "diagnosis", "symptom", "symptoms", "prescription", "prescribed",
-      "medication", "dose", "dosage", "therapy", "therapist", "psychiatrist",
-      "psychologist", "counselling", "counseling", "depression", "anxiety", "bipolar",
-      "schizophrenia", "ptsd", "adhd", "ocd", "eating disorder", "anorexia", "bulimia",
-      "cancer", "tumor", "tumour", "diabetes", "asthma", "epilepsy", "hiv", "aids",
-      "std", "sti", "hepatitis", "pregnant", "pregnancy", "miscarriage", "abortion",
-      "fertility", "ivf", "contraception", "disorder", "syndrome", "chronic illness",
-      "disability", "treatment", "chemotherapy", "radiation", "surgery", "biopsy", "mri",
-      "ultrasound", "clinic", "hospital", "emergency room", "icu", "vaccine",
-      "immunization", "addiction", "rehab", "overdose", "self-harm", "suicidal",
-      "mental health",
+    excludePatterns: [
+      /\b(?:i (?:was|am|got|have|had)|i'?ve been|my)\s+(?:\w+\s+){0,2}(?:diagnos\w*|prescrib\w*|prescription|symptom\w*|medication|meds|therapist|psychiatrist|psychologist|condition|illness|disease|disorder|syndrome|cancer|tumou?r|diabet\w*|asthma|epilep\w*|hiv|aids|hepatitis|depress\w*|anxiety|bipolar|schizophren\w*|ptsd|adhd|ocd|anorexi\w*|bulimi\w*|addiction|rehab|chemo\w*|surgery|biopsy|treatment)\b/i,
+      /\b(?:i'?m|i am|my (?:wife|partner|girlfriend|daughter|sister))\s+(?:\w+\s+){0,2}pregnant\b/i,
+      /\bmy (?:pregnancy|miscarriage|abortion|fertility|ivf)\b/i,
+      /\bmy (?:mother|father|mom|dad|sister|brother|son|daughter|wife|husband|partner|friend|colleague|coworker)\b[^.!?]{0,40}\b(?:diagnos\w*|cancer|depress\w*|anxiety|illness|disease|surgery|therapy|medication)\b/i,
     ],
-    patterns: [/\b\d+\s?(?:mg|mcg|ml)\b/i],
+    excludeKeywords: [
+      "self-harm",
+      "selfharm",
+      "suicidal",
+      "suicide attempt",
+      "overdosed",
+    ],
+    flagKeywords: [
+      "treatment",
+      "therapy",
+      "therapist",
+      "clinic",
+      "hospital",
+      "surgery",
+      "disorder",
+      "syndrome",
+      "symptom",
+      "symptoms",
+      "diagnosis",
+      "diagnosed",
+      "medication",
+      "dose",
+      "dosage",
+      "prescription",
+      "vaccine",
+      "immunization",
+      "cancer",
+      "tumor",
+      "tumour",
+      "diabetes",
+      "asthma",
+      "epilepsy",
+      "hiv",
+      "aids",
+      "std",
+      "sti",
+      "hepatitis",
+      "depression",
+      "anxiety",
+      "bipolar",
+      "schizophrenia",
+      "ptsd",
+      "adhd",
+      "ocd",
+      "eating disorder",
+      "anorexia",
+      "bulimia",
+      "pregnant",
+      "pregnancy",
+      "miscarriage",
+      "abortion",
+      "fertility",
+      "ivf",
+      "contraception",
+      "chronic illness",
+      "disability",
+      "chemotherapy",
+      "radiation",
+      "biopsy",
+      "mri",
+      "ultrasound",
+      "emergency room",
+      "icu",
+      "addiction",
+      "rehab",
+      "overdose",
+      "mental health",
+      "doctor",
+      "nurse",
+      "patient",
+    ],
+    flagPatterns: [/\b\d+\s?(?:mg|mcg|ml)\b/i],
+    externalLists: [
+      "ICD-10 / ICD-11 condition names",
+      "RxNorm drug-name list",
+    ],
+    basis: ["GDPR9", "MHMD", "CCPA", "HIPAA", "PIPEDA"],
   },
   {
     id: "children",
-    keywords: [
-      "my son", "my daughter", "my kid", "my child", "my baby", "toddler",
-      "kindergarten", "preschool", "elementary school", "middle school", "minor",
-      "underage", "teenager",
-    ],
-    patterns: [
-      /\bi(?:'?m| am)\s?1[0-7]\b/i,
+    excludePatterns: [
+      /\bi(?:'?m| am)\s*1[0-7]\b(?!\d)/i,
+      /\bi(?:'?m| am)\s+(?:a\s+)?(?:minor|underage)\b/i,
       /\bmy (?:son|daughter|kid|child)\s+is\s+\d{1,2}\b/i,
       /\bin\s+\d{1,2}(?:st|nd|rd|th)\s+grade\b/i,
     ],
+    flagKeywords: [
+      "my son",
+      "my daughter",
+      "my kid",
+      "my child",
+      "my baby",
+      "toddler",
+      "kindergarten",
+      "preschool",
+      "elementary school",
+      "middle school",
+      "high school",
+      "teenager",
+    ],
+    basis: ["COPPA", "GDPR9"],
+    note: 'Bare "minor" and "underage" are no longer keyword matches; only self-attribution excludes.',
   },
   {
     id: "biometric",
-    keywords: [
-      "fingerprint", "thumbprint", "faceprint", "face scan", "facial recognition", "face id",
-      "retina", "retinal scan", "iris scan", "voiceprint", "voice recognition", "biometric",
-      "palm print", "hand geometry", "gait analysis",
+    excludePatterns: [
+      /\bmy\s+(?:fingerprint|thumbprint|faceprint|face scan|retina|retinal scan|iris scan|voiceprint|palm print|biometrics?)\b/i,
+      /\bi\s+(?:scanned|registered|enrolled)\s+my\s+(?:face|fingerprint|iris|retina|voice)\b/i,
     ],
+    flagKeywords: [
+      "fingerprint",
+      "thumbprint",
+      "faceprint",
+      "face scan",
+      "facial recognition",
+      "face id",
+      "retina",
+      "retinal scan",
+      "iris scan",
+      "voiceprint",
+      "voice recognition",
+      "biometric",
+      "palm print",
+      "hand geometry",
+      "gait analysis",
+    ],
+    basis: ["BIPA", "GDPR9", "Law25"],
   },
   {
     id: "sexual_orientation_sex_life",
-    keywords: [
-      "my sexual orientation", "my sex life", "sexually active", "i am gay", "i am a lesbian",
-      "i'm gay", "i'm bisexual", "i am bisexual", "i am asexual", "i am transgender",
+    excludeKeywords: [
+      "my sexual orientation",
+      "my sex life",
+      "i am gay",
+      "i'm gay",
+      "i am a lesbian",
+      "i'm a lesbian",
+      "i am bisexual",
+      "i'm bisexual",
+      "i am asexual",
+      "i'm asexual",
+      "i am transgender",
+      "i'm transgender",
+      "i am trans",
+      "i'm trans",
     ],
+    flagKeywords: ["sexually active", "sexual orientation", "lgbtq"],
+    basis: ["GDPR9", "CCPA"],
   },
   {
     id: "race_ethnicity",
-    keywords: ["my ethnicity", "my race is", "my heritage", "my ancestry"],
-    patterns: [/\bas an?\s+(?:african[- ]american|black|white|asian|hispanic|latino|latina|latinx|indigenous|native american|arab|jewish|middle eastern)\b/i],
+    excludeKeywords: [
+      "my ethnicity",
+      "my race is",
+      "my heritage is",
+      "my ancestry is",
+    ],
+    excludePatterns: [
+      /\bas an?\s+(?:african[- ]american|black|white|asian|hispanic|latino|latina|latinx|indigenous|native american|arab|jewish|middle eastern)\s+(?:man|woman|person|guy|girl|american|canadian|immigrant)\b/i,
+    ],
+    flagKeywords: ["ethnicity", "my background", "my culture"],
+    basis: ["GDPR9", "CCPA"],
   },
   {
     id: "religion",
-    keywords: [
-      "my religion", "my faith", "practicing catholic", "practicing muslim", "observant jew",
-      "i pray to", "my church", "my mosque", "my synagogue", "my temple",
+    excludeKeywords: [
+      "my religion",
+      "my faith is",
+      "my church",
+      "my mosque",
+      "my synagogue",
+      "my temple",
+      "i pray to",
     ],
-    patterns: [/\bi(?:'?m| am)\s+(?:a\s+)?(?:christian|catholic|muslim|jewish|hindu|buddhist|sikh|atheist|agnostic|mormon|evangelical)\b/i],
+    excludePatterns: [
+      /\bi(?:'?m| am)\s+(?:a\s+)?(?:practi[cs]ing\s+|observant\s+)?(?:christian|catholic|muslim|jewish|hindu|buddhist|sikh|atheist|agnostic|mormon|evangelical|orthodox)\b/i,
+    ],
+    flagKeywords: [
+      "religion",
+      "faith",
+      "church",
+      "mosque",
+      "synagogue",
+      "temple",
+      "prayer",
+    ],
+    basis: ["GDPR9", "CCPA"],
   },
   {
     id: "political_opinion",
-    keywords: ["my political", "my party", "i voted for"],
-    patterns: [/\bi(?:'?m| am)\s+(?:a\s+)?(?:republican|democrat|conservative|liberal|progressive|socialist|libertarian|communist)\b/i],
+    excludeKeywords: [
+      "my political views",
+      "my political opinion",
+      "i voted for",
+      "my party is",
+    ],
+    excludePatterns: [
+      /\bi(?:'?m| am)\s+(?:a\s+)?(?:republican|democrat|conservative|liberal|progressive|socialist|libertarian|communist|anarchist)\b/i,
+    ],
+    flagKeywords: ["politics", "election", "political party", "voted"],
+    basis: ["GDPR9"],
   },
   {
     id: "trade_union",
-    keywords: [
-      "union member", "my union", "shop steward", "collective bargaining", "labor union",
-      "labour union",
+    excludeKeywords: [
+      "my union",
+      "i am a union member",
+      "i'm a union member",
+      "my shop steward",
     ],
+    flagKeywords: [
+      "union member",
+      "shop steward",
+      "collective bargaining",
+      "labor union",
+      "labour union",
+      "trade union",
+    ],
+    basis: ["GDPR9", "CCPA"],
   },
   {
     id: "genetic",
-    keywords: [
-      "dna test", "genetic test", "genetic testing", "genome", "hereditary", "23andme",
-      "ancestrydna", "genetic marker", "genetic predisposition", "brca",
+    excludeKeywords: [
+      "my dna",
+      "my genome",
+      "my genetic test",
+      "my dna test",
+      "my 23andme",
+      "my ancestry results",
     ],
+    excludePatterns: [
+      /\bi\s+(?:took|did|got)\s+(?:an?\s+)?(?:dna|genetic|ancestry)\s+test\b/i,
+    ],
+    flagKeywords: [
+      "dna test",
+      "genetic test",
+      "genetic testing",
+      "genome",
+      "hereditary",
+      "23andme",
+      "ancestrydna",
+      "genetic marker",
+      "genetic predisposition",
+      "brca",
+    ],
+    basis: ["GDPR9", "CCPA"],
   },
   {
     id: "precise_geolocation",
-    keywords: ["i live at", "my address is", "my home address"],
-    patterns: [/\bi live at\b/i, /\bmy address is\b/i],
+    flagKeywords: [
+      "i live at",
+      "my address is",
+      "my home address",
+      "my neighbourhood",
+      "my neighborhood",
+    ],
+    basis: ["CCPA", "MHMD"],
   },
   {
-    id: "financial_credentials",
-    keywords: [
-      "password", "passcode", "pin number", "my pin", "routing number", "account number",
-      "cvv", "security code", "api key", "secret key", "private key", "seed phrase",
-      "social security number", "credit card number",
+    id: "live_secret",
+    excludeKeywords: ["seed phrase", "recovery phrase", "mnemonic phrase"],
+    excludePatterns: [
+      /\b(?:my |the )?(?:password|passcode|pin|api key|secret key|private key|access token|auth token)\s+is\b/i,
+      /\b(?:sk|pk)_[A-Za-z0-9]{20,}\b/,
+      /\bAKIA[0-9A-Z]{16}\b/,
     ],
-    patterns: [/\b(?:sk|pk)_[A-Za-z0-9]{20,}\b/, /\bAKIA[0-9A-Z]{16}\b/],
+    flagKeywords: [
+      "password",
+      "passcode",
+      "pin number",
+      "routing number",
+      "account number",
+      "cvv",
+      "security code",
+      "api key",
+      "secret key",
+      "private key",
+      "social security number",
+      "credit card number",
+      "access token",
+    ],
+    basis: ["CCPA", "security"],
   },
 ];
 
@@ -454,13 +659,31 @@ export function redactPrompt(text: string, loggedInUserName?: string) {
 }
 
 export function findSensitiveCategories(text: string): string[] {
-  return SENSITIVE_CATEGORIES.filter((category) => {
-    const keywordMatch = category.keywords.some((keyword) =>
-      keywordRegex(keyword).test(text),
-    );
-    const patternMatch = category.patterns?.some((pattern) => pattern.test(text));
-    return keywordMatch || patternMatch;
-  }).map((category) => category.id);
+  return SENSITIVE_CATEGORIES.filter((category) =>
+    matchesCategorySignals(
+      text,
+      category.excludeKeywords,
+      category.excludePatterns,
+    ),
+  ).map((category) => category.id);
+}
+
+export function findFlaggedCategories(text: string): string[] {
+  return SENSITIVE_CATEGORIES.filter((category) =>
+    matchesCategorySignals(text, category.flagKeywords, category.flagPatterns),
+  ).map((category) => category.id);
+}
+
+function matchesCategorySignals(
+  text: string,
+  keywords?: string[],
+  patterns?: RegExp[],
+) {
+  const keywordMatch = keywords?.some((keyword) =>
+    keywordRegex(keyword).test(text),
+  );
+  const patternMatch = patterns?.some((pattern) => pattern.test(text));
+  return Boolean(keywordMatch || patternMatch);
 }
 
 function redactLoggedInUserName(text: string, loggedInUserName?: string) {

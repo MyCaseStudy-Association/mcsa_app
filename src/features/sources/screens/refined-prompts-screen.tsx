@@ -1,52 +1,26 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 
-import { AppScreen } from "@/components/ui/app-screen";
 import { ThemedText } from "@/components/ui/themed-text";
-import { PrimaryButton } from "@/features/auth/components/primary-button";
-import { RefinedSessionModal } from "@/features/sources/components/refined-session-modal";
 import {
   RefinementDetailsModal,
   type RefinementDetailKind,
 } from "@/features/sources/components/refinement-details-modal";
-import { getLatestRefinementResult } from "@/features/sources/services/refinement-result-store";
+import type { PromptRefinementResult } from "@/features/sources/services/prompt-refinement";
 import { AppPalette, Spacing } from "@/theme/theme";
 import { useColors } from "@/theme/theme-provider";
 
-export default function RefinedPromptsScreen() {
-  const router = useRouter();
+type RefinedPromptsViewProps = {
+  result: PromptRefinementResult;
+};
+
+export default function RefinedPromptsView({
+  result,
+}: RefinedPromptsViewProps) {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const result = getLatestRefinementResult();
-  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [detailKind, setDetailKind] = useState<RefinementDetailKind | null>(null);
-  const [continuing, setContinuing] = useState(false);
-  const activeSession =
-    result?.sessions.find((session) => session.id === activeSessionId) ?? null;
-
-  if (!result) {
-    return (
-      <AppScreen
-        title="Refined prompts"
-        subtitle="No processed prompt data is available."
-        showBrand={false}
-        onBack={() => router.back()}
-      >
-        <View style={styles.emptyCard}>
-          <Ionicons
-            name="document-text-outline"
-            size={28}
-            color={colors.primaryTeal}
-          />
-          <ThemedText selectable type="smallBold" style={styles.emptyTitle}>
-            Process chats to review refined prompts here.
-          </ThemedText>
-        </View>
-      </AppScreen>
-    );
-  }
 
   const excludedCategories = [
     ...new Set(
@@ -59,15 +33,10 @@ export default function RefinedPromptsScreen() {
       : Math.round((result.prompts.length / result.inputPromptCount) * 100);
 
   return (
-    <AppScreen
-      title="Refined prompts"
-      subtitle="Review your privacy-safe prompt collection."
-      showBrand={false}
-      onBack={() => router.back()}
-    >
+    <View style={styles.refinedSection}>
       <View style={styles.dashboardHeading}>
         <ThemedText type="smallBold" style={styles.dashboardTitle}>
-          Privacy dashboard
+          Refined prompts
         </ThemedText>
         <View style={styles.processedPill}>
           <Ionicons name="time-outline" size={12} color={colors.glassMuted} />
@@ -204,124 +173,12 @@ export default function RefinedPromptsScreen() {
         </Pressable>
       ) : null}
 
-      <View style={styles.sectionHeader}>
-        <ThemedText type="smallBold" style={styles.sectionTitle}>
-          Selected chats
-        </ThemedText>
-        <ThemedText selectable type="small" style={styles.ruleset}>
-          Rules {result.rulesetVersion}
-        </ThemedText>
-      </View>
-
-      <View style={styles.sessionList}>
-        {result.sessions.map((session) => (
-          <Pressable
-            key={session.id}
-            accessibilityLabel={`${session.title}, ${session.inputPromptCount} prompts${session.affected ? ", affected" : ""}`}
-            accessibilityRole="button"
-            onPress={() => setActiveSessionId(session.id)}
-            style={({ pressed }) => [
-              styles.sessionRow,
-              pressed && styles.pressed,
-            ]}
-          >
-            <View style={styles.sessionIconWrap}>
-              <View style={styles.sessionIcon}>
-                <Ionicons
-                  name="chatbox-ellipses-outline"
-                  size={17}
-                  color={colors.primaryTeal}
-                />
-              </View>
-              {session.affected ? <View style={styles.affectedDot} /> : null}
-            </View>
-            <View style={styles.sessionCopy}>
-              <ThemedText
-                selectable
-                ellipsizeMode="tail"
-                numberOfLines={1}
-                type="smallBold"
-                style={styles.sessionTitle}
-              >
-                {session.title}
-              </ThemedText>
-              <ThemedText selectable type="small" style={styles.sessionMeta}>
-                {session.refinedPromptCount} refined · {session.excludedPromptCount} excluded
-              </ThemedText>
-            </View>
-            <View style={styles.promptCountBadge}>
-              <ThemedText
-                selectable
-                type="smallBold"
-                style={styles.promptCountText}
-              >
-                {session.inputPromptCount}
-              </ThemedText>
-            </View>
-            <Ionicons
-              name="chevron-forward"
-              size={17}
-              color={colors.glassMuted}
-            />
-          </Pressable>
-        ))}
-
-        {result.sessions.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Ionicons
-              name="eye-off-outline"
-              size={28}
-              color={colors.primaryTeal}
-            />
-            <ThemedText selectable type="smallBold" style={styles.emptyTitle}>
-              No processed chat sessions are available.
-            </ThemedText>
-          </View>
-        ) : null}
-      </View>
-
-      <View style={styles.continueCard}>
-        <View style={styles.continueCopyRow}>
-          <View style={styles.continueIcon}>
-            <Ionicons
-              name="checkmark-circle-outline"
-              size={22}
-              color={colors.primaryTeal}
-            />
-          </View>
-          <View style={styles.continueCopy}>
-            <ThemedText type="smallBold" style={styles.continueTitle}>
-              Review complete
-            </ThemedText>
-            <ThemedText type="small" style={styles.continueText}>
-              Continue when you are happy with the refined prompts.
-            </ThemedText>
-          </View>
-        </View>
-        <PrimaryButton
-          align="left"
-          icon="arrow-forward"
-          label="Continue"
-          loading={continuing}
-          loadingLabel="Opening Home…"
-          onPress={() => {
-            setContinuing(true);
-            requestAnimationFrame(() => router.replace("/(tabs)/home"));
-          }}
-        />
-      </View>
-
-      <RefinedSessionModal
-        session={activeSession}
-        prompts={result.prompts}
-        onClose={() => setActiveSessionId(null)}
-      />
       <RefinementDetailsModal
         kind={detailKind}
         result={result}
         onClose={() => setDetailKind(null)}
       />
-    </AppScreen>
+    </View>
   );
 }
 
@@ -385,6 +242,9 @@ function formatProcessedAt(timestamp: number) {
 
 function createStyles(c: AppPalette) {
   return StyleSheet.create({
+    refinedSection: {
+      gap: Spacing.four,
+    },
     dashboardHeading: {
       alignItems: "center",
       flexDirection: "row",
@@ -533,102 +393,6 @@ function createStyles(c: AppPalette) {
     },
     sectionTitle: { color: c.glassText, fontSize: 15 },
     sectionHint: { color: c.glassMuted, fontSize: 11 },
-    ruleset: { color: c.glassMuted, fontSize: 11 },
-    sessionList: {
-      backgroundColor: c.surface,
-      borderColor: c.fieldBorder,
-      borderCurve: "continuous",
-      borderRadius: 20,
-      borderWidth: 1,
-      gap: Spacing.two,
-      overflow: "hidden",
-      padding: Spacing.two,
-    },
-    sessionRow: {
-      alignItems: "center",
-      borderCurve: "continuous",
-      borderRadius: 14,
-      backgroundColor: c.noteSurface,
-      flexDirection: "row",
-      gap: Spacing.two,
-      minHeight: 62,
-      paddingHorizontal: Spacing.three,
-      paddingVertical: Spacing.two,
-    },
-    sessionIconWrap: { position: "relative" },
-    sessionIcon: {
-      alignItems: "center",
-      backgroundColor: c.lightTealBackground,
-      borderCurve: "continuous",
-      borderRadius: 10,
-      height: 34,
-      justifyContent: "center",
-      width: 34,
-    },
-    sessionCopy: { flex: 1, gap: Spacing.half, minWidth: 0 },
-    sessionTitle: { color: c.glassText, fontSize: 13, minWidth: 0 },
-    sessionMeta: { color: c.glassMuted, fontSize: 10, lineHeight: 14 },
-    promptCountBadge: {
-      backgroundColor: c.noteSurface,
-      borderRadius: 999,
-      minWidth: 26,
-      paddingHorizontal: Spacing.two,
-      paddingVertical: Spacing.one,
-    },
-    promptCountText: {
-      color: c.primaryTeal,
-      fontSize: 11,
-      fontVariant: ["tabular-nums"],
-      textAlign: "center",
-    },
-    affectedDot: {
-      backgroundColor: c.accentTeal,
-      borderColor: c.surface,
-      borderRadius: 999,
-      borderWidth: 2,
-      height: 10,
-      position: "absolute",
-      right: -2,
-      top: -2,
-      width: 10,
-    },
-    emptyCard: {
-      alignItems: "center",
-      backgroundColor: c.surface,
-      borderColor: c.cardBorder,
-      borderCurve: "continuous",
-      borderRadius: 18,
-      borderWidth: 1,
-      gap: Spacing.three,
-      padding: Spacing.five,
-    },
-    emptyTitle: { color: c.glassText, textAlign: "center" },
-    continueCard: {
-      backgroundColor: c.surface,
-      borderColor: c.cardBorder,
-      borderCurve: "continuous",
-      borderRadius: 20,
-      borderWidth: 1,
-      boxShadow: "0 6px 18px rgba(7, 58, 53, 0.08)",
-      gap: Spacing.three,
-      padding: Spacing.three,
-    },
-    continueCopyRow: {
-      alignItems: "center",
-      flexDirection: "row",
-      gap: Spacing.three,
-    },
-    continueIcon: {
-      alignItems: "center",
-      backgroundColor: c.lightTealBackground,
-      borderRadius: 12,
-      height: 42,
-      justifyContent: "center",
-      width: 42,
-    },
-    continueCopy: { flex: 1, gap: Spacing.half },
-    continueTitle: { color: c.glassText, fontSize: 14 },
-    continueText: { color: c.glassMuted, fontSize: 11, lineHeight: 16 },
     pressed: { opacity: 0.7 },
   });
 }
