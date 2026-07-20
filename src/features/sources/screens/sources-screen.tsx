@@ -28,6 +28,7 @@ import {
   type RefinedSessionSummary,
   refineSelectedSessions,
 } from "@/features/sources/services/prompt-refinement";
+import { useRefresh } from "@/hooks/use-refresh";
 import { AppPalette, Spacing } from "@/theme/theme";
 import { useColors } from "@/theme/theme-provider";
 
@@ -55,6 +56,8 @@ export default function SourcesScreen() {
 
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const { refreshing: reloading, onRefresh: reloadSources } =
+    useRefresh(handleReload);
   const selectedIconColor =
     selectedSource.provider === "grok" || selectedSource.provider === "chatgpt"
       ? colors.glassText
@@ -136,6 +139,10 @@ export default function SourcesScreen() {
     : selected.size;
 
   function resetImport() {
+    setActiveSource(null);
+    setDropdownOpen(false);
+    setViewing(null);
+    setFinishing(false);
     setConsentAccepted(false);
     setConsentModalOpen(false);
     setRefinementResult(null);
@@ -143,6 +150,11 @@ export default function SourcesScreen() {
     setResult(null);
     setSelected(new Set());
     setError("");
+  }
+
+  function handleReload() {
+    if (busy || finishing) return;
+    resetImport();
   }
 
   // Review step — hides the source list once an export is loaded.
@@ -165,6 +177,8 @@ export default function SourcesScreen() {
           subtitle="Select chats and review refined prompts together."
           showBrand={false}
           onBack={resetImport}
+          refreshing={reloading}
+          onRefresh={reloadSources}
           footer={
             <View style={styles.resultFooter}>
               <View style={styles.consentRow}>
@@ -558,6 +572,8 @@ export default function SourcesScreen() {
         title="Sources"
         subtitle="Import a conversation archive."
         onBack={() => router.back()}
+        refreshing={reloading}
+        onRefresh={reloadSources}
       >
         <View style={styles.sourceSection}>
           <ThemedText type="smallBold" style={styles.sectionLabel}>

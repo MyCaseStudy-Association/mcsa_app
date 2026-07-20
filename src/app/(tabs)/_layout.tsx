@@ -83,10 +83,18 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="data"
+        options={{
+          title: 'Data',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="server-outline" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
-          tabBarIcon: ({ color, size }) => <Ionicons name="person-outline" color={color} size={size} />,
+          href: null,
         }}
       />
       <Tabs.Screen

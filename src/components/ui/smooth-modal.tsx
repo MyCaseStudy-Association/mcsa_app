@@ -25,7 +25,7 @@ import { useAppTheme } from '@/theme/theme-provider';
 type SmoothModalProps = PropsWithChildren<{
   visible: boolean;
   onClose: () => void;
-  placement?: 'bottom' | 'center' | 'full';
+  placement?: 'bottom' | 'center' | 'full' | 'right';
   contentStyle?: StyleProp<ViewStyle>;
   keyboardAvoiding?: boolean;
   dismissible?: boolean;
@@ -111,7 +111,9 @@ export function SmoothModal({
             { translateY: interpolate(progress.value, [0, 1], [14, 0]) },
             { scale: interpolate(progress.value, [0, 1], [0.94, 1]) },
             ]
-          : [{ translateY: interpolate(progress.value, [0, 1], [32, 0]) }],
+          : placement === 'right'
+            ? [{ translateX: interpolate(progress.value, [0, 1], [96, 0]) }]
+            : [{ translateY: interpolate(progress.value, [0, 1], [32, 0]) }],
   }));
 
   const modalContent = (
@@ -119,7 +121,13 @@ export function SmoothModal({
       accessibilityViewIsModal
       style={[
         styles.root,
-        placement === 'bottom' ? styles.bottom : placement === 'center' ? styles.center : null,
+        placement === 'bottom'
+          ? styles.bottom
+          : placement === 'center'
+            ? styles.center
+            : placement === 'right'
+              ? styles.right
+              : null,
       ]}>
       <Animated.View
         pointerEvents="none"
@@ -140,7 +148,9 @@ export function SmoothModal({
             ? [styles.bottomContent, themedStyles.bottomContent]
             : placement === 'center'
               ? [styles.centerContent, themedStyles.centerContent]
-              : [styles.fullContent, themedStyles.fullContent],
+              : placement === 'right'
+                ? [styles.rightContent, themedStyles.rightContent]
+                : [styles.fullContent, themedStyles.fullContent],
           contentAnimationStyle,
           contentStyle,
         ]}>
@@ -184,6 +194,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 24,
   },
+  right: {
+    alignItems: 'flex-end',
+  },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
   },
@@ -200,6 +213,11 @@ const styles = StyleSheet.create({
   fullContent: {
     flex: 1,
     width: '100%',
+  },
+  rightContent: {
+    height: '100%',
+    maxWidth: 400,
+    width: '88%',
   },
 });
 
@@ -227,6 +245,15 @@ function createThemedStyles(c: AppPalette, scheme: 'light' | 'dark') {
     },
     fullContent: {
       backgroundColor: c.screenBg,
+    },
+    rightContent: {
+      backgroundColor: c.modalSurface,
+      borderLeftColor: c.modalBorder,
+      borderLeftWidth: 1,
+      boxShadow:
+        scheme === 'dark'
+          ? '-18px 0 48px rgba(0, 0, 0, 0.62)'
+          : '-14px 0 38px rgba(7, 58, 53, 0.20)',
     },
   });
 }

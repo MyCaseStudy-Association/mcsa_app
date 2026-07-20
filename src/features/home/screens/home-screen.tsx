@@ -1,9 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import { AppScreen } from "@/components/ui/app-screen";
+import { ConfirmModal } from "@/components/ui/confirm-modal";
+import { SmoothModal } from "@/components/ui/smooth-modal";
 import { ThemedText } from "@/components/ui/themed-text";
 import { useAuth } from "@/features/auth/providers/auth-provider";
 import { useRefresh } from "@/hooks/use-refresh";
@@ -58,9 +61,22 @@ export default function HomeScreen() {
   const router = useRouter();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const { user } = useAuth();
+  const { signOut, user } = useAuth();
   const { refreshing, onRefresh } = useRefresh();
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [confirmLogout, setConfirmLogout] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const firstName = (user?.name ?? user?.email ?? "there").split(/[\s@]/)[0];
+  const displayName = user?.name || "Portibilify member";
+  const email = user?.email || "Account details";
+
+  async function handleLogout() {
+    setIsLoggingOut(true);
+    await signOut();
+    router.replace("/");
+    setConfirmLogout(false);
+    setIsLoggingOut(false);
+  }
 
   return (
     <AppScreen
@@ -70,34 +86,59 @@ export default function HomeScreen() {
       refreshing={refreshing}
       onRefresh={onRefresh}
       headerRight={
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Open notifications"
-          hitSlop={8}
-          onPress={() => router.push("/notifications")}
-          style={({ pressed }) => [
-            styles.notificationButton,
-            pressed && styles.pressed,
-          ]}
-        >
-          <Ionicons
-            name="notifications-outline"
-            size={21}
-            color={colors.glassText}
-          />
-          <View style={styles.notificationBadge} />
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open notifications"
+            hitSlop={8}
+            onPress={() => router.push("/notifications")}
+            style={({ pressed }) => [
+              styles.headerIconButton,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Ionicons
+              name="notifications-outline"
+              size={20}
+              color={colors.glassText}
+            />
+            <View style={styles.notificationBadge} />
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open profile menu"
+            hitSlop={8}
+            onPress={() => setProfileMenuOpen(true)}
+            style={({ pressed }) => [
+              styles.headerIconButton,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Ionicons
+              name="person-outline"
+              size={20}
+              color={colors.glassText}
+            />
+          </Pressable>
+        </View>
       }
     >
       <View style={styles.walletCard}>
-        <View style={styles.walletPrimary}>
+        <LinearGradient
+          colors={[colors.walletGradientStart, colors.walletGradientEnd]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.walletPrimary}
+        >
           <View style={styles.walletHeader}>
             <View style={styles.walletTitleRow}>
-              <Ionicons
-                name="wallet-outline"
-                size={17}
-                color={colors.primaryTeal}
-              />
+              <View style={styles.walletIcon}>
+                <Ionicons
+                  name="wallet-outline"
+                  size={16}
+                  color={colors.buttonPrimaryText}
+                />
+              </View>
               <ThemedText type="smallBold" style={styles.walletTitle}>
                 Wallet balance
               </ThemedText>
@@ -123,22 +164,36 @@ export default function HomeScreen() {
               Earned from approved chat sessions
             </ThemedText>
           </View>
-        </View>
+        </LinearGradient>
 
         <View style={styles.walletSummary}>
           <View style={styles.walletSummaryItem}>
-            <ThemedText type="small" style={styles.summaryLabel}>
-              Pending
-            </ThemedText>
+            <View style={styles.summaryLabelRow}>
+              <Ionicons
+                name="time-outline"
+                size={13}
+                color={colors.glassMuted}
+              />
+              <ThemedText type="small" style={styles.summaryLabel}>
+                Pending
+              </ThemedText>
+            </View>
             <ThemedText type="smallBold" style={styles.summaryValue} selectable>
               {formatUsd(WALLET.pending)}
             </ThemedText>
           </View>
           <View style={styles.summaryDivider} />
           <View style={styles.walletSummaryItem}>
-            <ThemedText type="small" style={styles.summaryLabel}>
-              Earned this month
-            </ThemedText>
+            <View style={styles.summaryLabelRow}>
+              <Ionicons
+                name="trending-up-outline"
+                size={13}
+                color={colors.primaryTeal}
+              />
+              <ThemedText type="small" style={styles.summaryLabel}>
+                Earned this month
+              </ThemedText>
+            </View>
             <ThemedText type="smallBold" style={styles.summaryValue} selectable>
               {formatUsd(WALLET.thisMonth)}
             </ThemedText>
@@ -265,6 +320,148 @@ export default function HomeScreen() {
           </View>
         </View>
       </View>
+
+      <SmoothModal
+        contentStyle={styles.profileMenu}
+        keyboardAvoiding={false}
+        onClose={() => setProfileMenuOpen(false)}
+        placement="right"
+        visible={profileMenuOpen}
+      >
+        <View style={styles.menuHeader}>
+          <ThemedText type="smallBold" style={styles.menuHeaderTitle}>
+            Account
+          </ThemedText>
+          <Pressable
+            accessibilityLabel="Close profile menu"
+            accessibilityRole="button"
+            hitSlop={8}
+            onPress={() => setProfileMenuOpen(false)}
+            style={({ pressed }) => [
+              styles.menuCloseButton,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Ionicons name="close" size={20} color={colors.glassText} />
+          </Pressable>
+        </View>
+        <View style={styles.menuAccount}>
+          <View style={styles.menuAvatar}>
+            <Ionicons
+              name="person"
+              size={21}
+              color={colors.buttonPrimaryText}
+            />
+          </View>
+          <View style={styles.menuAccountCopy}>
+            <ThemedText type="smallBold" style={styles.menuName}>
+              {displayName}
+            </ThemedText>
+            <ThemedText
+              type="small"
+              numberOfLines={1}
+              style={styles.menuEmail}
+            >
+              {email}
+            </ThemedText>
+          </View>
+        </View>
+
+        <View style={styles.menuList}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => {
+              setProfileMenuOpen(false);
+              router.push("/profile");
+            }}
+            style={({ pressed }) => [
+              styles.menuRow,
+              pressed && styles.pressed,
+            ]}
+          >
+            <View style={styles.menuRowIcon}>
+              <Ionicons
+                name="person-outline"
+                size={18}
+                color={colors.primaryTeal}
+              />
+            </View>
+            <ThemedText type="smallBold" style={styles.menuRowText}>
+              View profile
+            </ThemedText>
+            <Ionicons
+              name="chevron-forward"
+              size={16}
+              color={colors.glassMuted}
+            />
+          </Pressable>
+          <View style={styles.menuDivider} />
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => {
+              setProfileMenuOpen(false);
+              router.push("/data");
+            }}
+            style={({ pressed }) => [
+              styles.menuRow,
+              pressed && styles.pressed,
+            ]}
+          >
+            <View style={styles.menuRowIcon}>
+              <Ionicons
+                name="shield-checkmark-outline"
+                size={18}
+                color={colors.primaryTeal}
+              />
+            </View>
+            <ThemedText type="smallBold" style={styles.menuRowText}>
+              Data & privacy
+            </ThemedText>
+            <Ionicons
+              name="chevron-forward"
+              size={16}
+              color={colors.glassMuted}
+            />
+          </Pressable>
+          <View style={styles.menuDivider} />
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => {
+              setProfileMenuOpen(false);
+              setConfirmLogout(true);
+            }}
+            style={({ pressed }) => [
+              styles.menuRow,
+              pressed && styles.pressed,
+            ]}
+          >
+            <View style={[styles.menuRowIcon, styles.logoutIcon]}>
+              <Ionicons
+                name="log-out-outline"
+                size={18}
+                color={colors.danger}
+              />
+            </View>
+            <ThemedText type="smallBold" style={styles.logoutText}>
+              Log out
+            </ThemedText>
+          </Pressable>
+        </View>
+      </SmoothModal>
+
+      <ConfirmModal
+        visible={confirmLogout}
+        icon="log-out-outline"
+        destructive
+        title="Log out?"
+        message="You'll need to sign in again to access your Portibilify dashboard."
+        confirmLabel="Log out"
+        loading={isLoggingOut}
+        onConfirm={() => {
+          void handleLogout();
+        }}
+        onCancel={() => setConfirmLogout(false)}
+      />
     </AppScreen>
   );
 }
@@ -274,7 +471,12 @@ function createStyles(c: AppPalette) {
     pressed: {
       opacity: 0.7,
     },
-    notificationButton: {
+    headerActions: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: Spacing.two,
+    },
+    headerIconButton: {
       alignItems: "center",
       backgroundColor: c.surfaceGlass,
       borderColor: c.fieldBorder,
@@ -298,15 +500,15 @@ function createStyles(c: AppPalette) {
     },
     walletCard: {
       backgroundColor: c.surface,
-      borderColor: c.fieldBorder,
+      borderColor: c.cardBorder,
       borderCurve: "continuous",
       borderRadius: 20,
       borderWidth: 1,
+      boxShadow: "0 6px 18px rgba(15, 118, 110, 0.08)",
       overflow: "hidden",
     },
     walletPrimary: {
-      backgroundColor: c.lightTealBackground,
-      gap: Spacing.three,
+      gap: 20,
       padding: 20,
     },
     walletHeader: {
@@ -319,6 +521,15 @@ function createStyles(c: AppPalette) {
       flexDirection: "row",
       gap: Spacing.two,
     },
+    walletIcon: {
+      alignItems: "center",
+      backgroundColor: c.buttonPrimary,
+      borderCurve: "continuous",
+      borderRadius: 11,
+      height: 34,
+      justifyContent: "center",
+      width: 34,
+    },
     walletTitle: {
       color: c.glassText,
       fontSize: 14,
@@ -326,8 +537,10 @@ function createStyles(c: AppPalette) {
     availablePill: {
       alignItems: "center",
       backgroundColor: c.surface,
+      borderColor: c.fieldBorder,
       borderCurve: "continuous",
       borderRadius: 999,
+      borderWidth: 1,
       flexDirection: "row",
       gap: 5,
       paddingHorizontal: Spacing.two,
@@ -369,6 +582,9 @@ function createStyles(c: AppPalette) {
     },
     walletSummary: {
       alignItems: "stretch",
+      backgroundColor: c.surface,
+      borderTopColor: c.fieldBorder,
+      borderTopWidth: 1,
       flexDirection: "row",
       padding: Spacing.three,
     },
@@ -378,6 +594,12 @@ function createStyles(c: AppPalette) {
       gap: Spacing.half,
       justifyContent: "center",
       minHeight: 42,
+    },
+    summaryLabelRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: Spacing.one,
+      justifyContent: "center",
     },
     summaryDivider: {
       alignSelf: "stretch",
@@ -530,6 +752,105 @@ function createStyles(c: AppPalette) {
       color: c.primaryTeal,
       fontSize: 10,
       fontWeight: "700",
+    },
+    profileMenu: {
+      backgroundColor: c.modalSurface,
+      gap: Spacing.three,
+      paddingBottom: Spacing.five,
+      paddingHorizontal: Spacing.three,
+      paddingTop: Spacing.six,
+    },
+    menuHeader: {
+      alignItems: "center",
+      flexDirection: "row",
+      justifyContent: "space-between",
+      paddingHorizontal: Spacing.one,
+    },
+    menuHeaderTitle: {
+      color: c.glassText,
+      fontSize: 18,
+    },
+    menuCloseButton: {
+      alignItems: "center",
+      backgroundColor: c.noteSurface,
+      borderColor: c.fieldBorder,
+      borderCurve: "continuous",
+      borderRadius: 12,
+      borderWidth: 1,
+      height: 38,
+      justifyContent: "center",
+      width: 38,
+    },
+    menuAccount: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: Spacing.three,
+      paddingHorizontal: Spacing.one,
+      paddingVertical: Spacing.two,
+    },
+    menuAvatar: {
+      alignItems: "center",
+      backgroundColor: c.buttonPrimary,
+      borderCurve: "continuous",
+      borderRadius: 14,
+      height: 46,
+      justifyContent: "center",
+      width: 46,
+    },
+    menuAccountCopy: {
+      flex: 1,
+      gap: Spacing.half,
+      minWidth: 0,
+    },
+    menuName: {
+      color: c.glassText,
+      fontSize: 15,
+    },
+    menuEmail: {
+      color: c.glassMuted,
+      fontSize: 11,
+    },
+    menuList: {
+      backgroundColor: c.surface,
+      borderColor: c.fieldBorder,
+      borderCurve: "continuous",
+      borderRadius: 17,
+      borderWidth: 1,
+      paddingHorizontal: Spacing.three,
+    },
+    menuRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: Spacing.three,
+      minHeight: 58,
+      paddingVertical: Spacing.two,
+    },
+    menuRowIcon: {
+      alignItems: "center",
+      backgroundColor: c.lightTealBackground,
+      borderCurve: "continuous",
+      borderRadius: 10,
+      height: 34,
+      justifyContent: "center",
+      width: 34,
+    },
+    menuRowText: {
+      color: c.glassText,
+      flex: 1,
+      fontSize: 13,
+    },
+    menuDivider: {
+      backgroundColor: c.fieldBorder,
+      height: StyleSheet.hairlineWidth,
+      marginLeft: 50,
+    },
+    logoutIcon: {
+      backgroundColor: `${c.danger}14`,
+    },
+    logoutText: {
+      color: c.danger,
+      flex: 1,
+      fontSize: 13,
     },
   });
 }

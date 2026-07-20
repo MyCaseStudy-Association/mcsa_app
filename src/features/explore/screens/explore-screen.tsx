@@ -1,15 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Link } from 'expo-router';
 import { useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppScreen } from '@/components/ui/app-screen';
-import { GlassPanel } from '@/components/ui/glass-panel';
 import { ThemedText } from '@/components/ui/themed-text';
 import { AppPalette, Spacing } from '@/theme/theme';
 import { useRefresh } from '@/hooks/use-refresh';
 import { useColors } from '@/theme/theme-provider';
 
-const collections = [
+const workspaceTools = [
   {
     icon: 'people-outline' as const,
     title: 'Member directory',
@@ -25,11 +25,6 @@ const collections = [
     title: 'Reports',
     description: 'Compliance, finance, and activity analytics.',
   },
-  {
-    icon: 'cash-outline' as const,
-    title: 'Monetization',
-    description: 'Track data earnings and payout schedules.',
-  },
 ];
 
 export default function ExploreScreen() {
@@ -40,23 +35,82 @@ export default function ExploreScreen() {
   return (
     <AppScreen
       title="Explore"
-      subtitle="Discover everything Portibilify has to offer."
+      subtitle="Browse tools and insights."
       refreshing={refreshing}
       onRefresh={onRefresh}>
-      <View style={styles.grid}>
-        {collections.map((item) => (
-          <GlassPanel key={item.title} style={styles.card}>
-            <View style={styles.iconWrap}>
-              <Ionicons name={item.icon} size={20} color={colors.primaryTeal} />
+      <Link href="/money" asChild>
+        <Pressable
+          accessibilityRole="button"
+          style={({ pressed }) => [
+            styles.featureCard,
+            pressed && styles.pressed,
+          ]}>
+          <View style={styles.featureTop}>
+            <View style={styles.featureIcon}>
+              <Ionicons name="cash-outline" size={20} color={colors.primaryTeal} />
             </View>
-            <ThemedText type="smallBold" style={styles.cardTitle}>
-              {item.title}
+            <View style={styles.availableBadge}>
+              <View style={styles.availableDot} />
+              <ThemedText type="smallBold" style={styles.availableText}>
+                Available
+              </ThemedText>
+            </View>
+          </View>
+          <View style={styles.featureCopy}>
+            <ThemedText type="smallBold" style={styles.featureTitle}>
+              Monetization
             </ThemedText>
-            <ThemedText type="small" style={styles.cardDesc}>
-              {item.description}
+            <ThemedText type="small" style={styles.featureDescription}>
+              Track your data earnings, available balance, and payout schedule.
             </ThemedText>
-          </GlassPanel>
-        ))}
+          </View>
+          <View style={styles.featureAction}>
+            <ThemedText type="smallBold" style={styles.featureActionText}>
+              View money
+            </ThemedText>
+            <Ionicons name="chevron-forward" size={16} color={colors.primaryTeal} />
+          </View>
+        </Pressable>
+      </Link>
+
+      <View style={styles.workspaceSection}>
+        <View style={styles.sectionHeader}>
+          <ThemedText type="smallBold" style={styles.sectionTitle}>
+            Workspace
+          </ThemedText>
+          <ThemedText type="small" style={styles.sectionCount}>
+            {workspaceTools.length} tools
+          </ThemedText>
+        </View>
+
+        <View style={styles.toolList}>
+          {workspaceTools.map((item, index) => (
+            <View key={item.title}>
+              <View style={styles.toolRow}>
+                <View style={styles.toolIcon}>
+                  <Ionicons name={item.icon} size={17} color={colors.primaryTeal} />
+                </View>
+                <View style={styles.toolCopy}>
+                  <ThemedText type="smallBold" style={styles.toolTitle}>
+                    {item.title}
+                  </ThemedText>
+                  <ThemedText
+                    type="small"
+                    numberOfLines={1}
+                    style={styles.toolDescription}>
+                    {item.description}
+                  </ThemedText>
+                </View>
+                <ThemedText type="smallBold" style={styles.soonText}>
+                  Soon
+                </ThemedText>
+              </View>
+              {index < workspaceTools.length - 1 ? (
+                <View style={styles.divider} />
+              ) : null}
+            </View>
+          ))}
+        </View>
       </View>
     </AppScreen>
   );
@@ -64,32 +118,137 @@ export default function ExploreScreen() {
 
 function createStyles(c: AppPalette) {
   return StyleSheet.create({
-    grid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
+    pressed: {
+      opacity: 0.78,
+      transform: [{ scale: 0.99 }],
+    },
+    featureCard: {
+      backgroundColor: c.lightTealBackground,
+      borderColor: c.fieldBorder,
+      borderCurve: 'continuous',
+      borderRadius: 20,
+      borderWidth: 1,
       gap: Spacing.three,
+      padding: 20,
     },
-    card: {
-      flexBasis: 220,
-      flexGrow: 1,
-      gap: Spacing.two,
-      padding: Spacing.three,
-    },
-    iconWrap: {
+    featureTop: {
       alignItems: 'center',
-      backgroundColor: c.noteSurface,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+    },
+    featureIcon: {
+      alignItems: 'center',
+      backgroundColor: c.surface,
+      borderCurve: 'continuous',
       borderRadius: 12,
-      height: 44,
+      height: 40,
       justifyContent: 'center',
-      marginBottom: Spacing.one,
-      width: 44,
+      width: 40,
     },
-    cardTitle: {
+    availableBadge: {
+      alignItems: 'center',
+      backgroundColor: c.surface,
+      borderRadius: 999,
+      flexDirection: 'row',
+      gap: 5,
+      paddingHorizontal: Spacing.two,
+      paddingVertical: 5,
+    },
+    availableDot: {
+      backgroundColor: c.primaryTeal,
+      borderRadius: 999,
+      height: 6,
+      width: 6,
+    },
+    availableText: {
+      color: c.primaryTeal,
+      fontSize: 10,
+    },
+    featureCopy: {
+      gap: Spacing.one,
+      maxWidth: 520,
+    },
+    featureTitle: {
       color: c.glassText,
-      fontSize: 16,
+      fontSize: 18,
     },
-    cardDesc: {
+    featureDescription: {
       color: c.glassMuted,
+      fontSize: 12,
+      lineHeight: 17,
+    },
+    featureAction: {
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      flexDirection: 'row',
+      gap: Spacing.one,
+    },
+    featureActionText: {
+      color: c.primaryTeal,
+      fontSize: 12,
+    },
+    workspaceSection: {
+      gap: Spacing.two,
+    },
+    sectionHeader: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingHorizontal: Spacing.one,
+    },
+    sectionTitle: {
+      color: c.glassText,
+      fontSize: 15,
+    },
+    sectionCount: {
+      color: c.glassMuted,
+      fontSize: 11,
+    },
+    toolList: {
+      backgroundColor: c.surface,
+      borderColor: c.fieldBorder,
+      borderCurve: 'continuous',
+      borderRadius: 18,
+      borderWidth: 1,
+      paddingHorizontal: Spacing.three,
+    },
+    toolRow: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: Spacing.three,
+      minHeight: 72,
+      paddingVertical: Spacing.three,
+    },
+    toolIcon: {
+      alignItems: 'center',
+      backgroundColor: c.lightTealBackground,
+      borderCurve: 'continuous',
+      borderRadius: 11,
+      height: 36,
+      justifyContent: 'center',
+      width: 36,
+    },
+    toolCopy: {
+      flex: 1,
+      gap: Spacing.half,
+      minWidth: 0,
+    },
+    toolTitle: {
+      color: c.glassText,
+      fontSize: 13,
+    },
+    toolDescription: {
+      color: c.glassMuted,
+      fontSize: 11,
+    },
+    soonText: {
+      color: c.glassMuted,
+      fontSize: 10,
+    },
+    divider: {
+      backgroundColor: c.fieldBorder,
+      height: StyleSheet.hairlineWidth,
+      marginLeft: 52,
     },
   });
 }
