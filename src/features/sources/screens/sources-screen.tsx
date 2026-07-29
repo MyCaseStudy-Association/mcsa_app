@@ -28,6 +28,11 @@ import {
   type RefinedSessionSummary,
   refineSelectedSessions,
 } from "@/features/sources/services/prompt-refinement";
+import {
+  type ProcessRecordsResponse,
+  RefinementApiError,
+  submitForServerRefinement,
+} from "@/features/sources/services/refinement-api";
 import { useRefresh } from "@/hooks/use-refresh";
 import { AppPalette, Spacing } from "@/theme/theme";
 import { useColors } from "@/theme/theme-provider";
@@ -50,6 +55,8 @@ export default function SourcesScreen() {
   const [consentModalOpen, setConsentModalOpen] = useState(false);
   const [refinementResult, setRefinementResult] =
     useState<PromptRefinementResult | null>(null);
+  const [serverReview, setServerReview] =
+    useState<ProcessRecordsResponse | null>(null);
   const [reviewSessionSummaries, setReviewSessionSummaries] = useState<
     RefinedSessionSummary[]
   >([]);
@@ -138,6 +145,28 @@ export default function SourcesScreen() {
       ).length
     : selected.size;
 
+  // Crossing (1): only redacted prompts + flags + fingerprints leave the
+  // device, and only after consent is checked (Stage 5 gate). The server
+  // runs Stage 6 (precise de-identification) and returns per-record
+  // outcomes, shown before leaving the screen.
+  async function submitAndFinish() {
+    if (!refinementResult || !consentAccepted) return;
+    setFinishing(true);
+    setError("");
+    try {
+      const review = await submitForServerRefinement(refinementResult);
+      setServerReview(review);
+    } catch (submitError) {
+      setError(
+        submitError instanceof RefinementApiError
+          ? submitError.message
+          : "Could not submit the refined prompts. Try again.",
+      );
+    } finally {
+      setFinishing(false);
+    }
+  }
+
   function resetImport() {
     setActiveSource(null);
     setDropdownOpen(false);
@@ -147,6 +176,7 @@ export default function SourcesScreen() {
     setConsentModalOpen(false);
     setRefinementResult(null);
     setReviewSessionSummaries([]);
+    setServerReview(null);
     setResult(null);
     setSelected(new Set());
     setError("");
@@ -249,12 +279,9 @@ export default function SourcesScreen() {
                       !consentAccepted
                     }
                     loading={finishing}
-                    loadingLabel="Opening Home…"
+                    loadingLabel="Submitting…"
                     onPress={() => {
-                      setFinishing(true);
-                      requestAnimationFrame(() =>
-                        router.replace("/(tabs)/home"),
-                      );
+                      void submitAndFinish();
                     }}
                   />
                 </View>
@@ -553,6 +580,104 @@ export default function SourcesScreen() {
           >
             <ThemedText type="smallBold" style={styles.cancelConsentText}>
               Cancel
+            </ThemedText>
+          </Pressable>
+        </SmoothModal>
+        <SmoothModal
+          contentStyle={styles.consentModal}
+          dismissible={false}
+          keyboardAvoiding={false}
+          onClose={() => setServerReview(null)}
+          placement="center"
+          visible={serverReview !== null}
+        >
+          <View style={styles.consentModalIcon}>
+            <Ionicons
+              name="shield-checkmark-outline"
+              size={26}
+              color={colors.primaryTeal}
+            />
+          </View>
+          <ThemedText
+            selectable
+            type="smallBold"
+            style={styles.consentModalTitle}
+          >
+            Server review complete
+          </ThemedText>
+          <ThemedText selectable type="small" style={styles.consentModalText}>
+            Your redacted prompts went through the precise de-identification
+            pass. Only prompts that cleared every check are eligible for sale.
+          </ThemedText>
+          {serverReview ? (
+            <View style={styles.consentTerms}>
+              <View style={styles.consentTermRow}>
+                <Ionicons
+                  name="checkmark-circle-outline"
+                  size={18}
+                  color={colors.primaryTeal}
+                />
+                <ThemedText
+                  selectable
+                  type="small"
+                  style={styles.consentTermText}
+                >
+                  {serverReview.keptCount}{" "}
+                  {serverReview.keptCount === 1 ? "prompt" : "prompts"} approved
+                  for sale
+                </ThemedText>
+              </View>
+              {serverReview.excludedCount > 0 ? (
+                <View style={styles.consentTermRow}>
+                  <Ionicons
+                    name="eye-off-outline"
+                    size={18}
+                    color={colors.danger}
+                  />
+                  <ThemedText
+                    selectable
+                    type="small"
+                    style={styles.consentTermText}
+                  >
+                    {serverReview.excludedCount} excluded as sensitive after the
+                    deeper check
+                  </ThemedText>
+                </View>
+              ) : null}
+              {serverReview.droppedCount > 0 ? (
+                <View style={styles.consentTermRow}>
+                  <Ionicons
+                    name="remove-circle-outline"
+                    size={18}
+                    color={colors.glassMuted}
+                  />
+                  <ThemedText
+                    selectable
+                    type="small"
+                    style={styles.consentTermText}
+                  >
+                    {serverReview.droppedCount} dropped as too low-value after
+                    redaction
+                  </ThemedText>
+                </View>
+              ) : null}
+            </View>
+          ) : null}
+          <Pressable
+            accessibilityLabel="Finish and open Home"
+            accessibilityRole="button"
+            onPress={() => {
+              setServerReview(null);
+              requestAnimationFrame(() => router.replace("/(tabs)/home"));
+            }}
+            style={({ pressed }) => [
+              styles.acceptConsentButton,
+              pressed && styles.acceptConsentButtonPressed,
+            ]}
+          >
+            <Ionicons name="checkmark-circle" size={20} color="#ffffff" />
+            <ThemedText type="smallBold" style={styles.acceptConsentText}>
+              Done
             </ThemedText>
           </Pressable>
         </SmoothModal>

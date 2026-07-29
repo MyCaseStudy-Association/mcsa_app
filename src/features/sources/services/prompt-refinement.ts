@@ -1,4 +1,5 @@
 import type { ChatSession } from "@/features/sources/services/chat-import";
+import { fingerprintPrompt } from "@/features/sources/services/fingerprint";
 
 export const RULESET_VERSION = "0.5-draft";
 
@@ -30,6 +31,16 @@ export type RefinedPrompt = {
   refinedText: string;
   redactionCount: number;
   redactionTypes: string[];
+  /**
+   * Low-precision category hits (Appendix D v0.5 flag tier). The record is
+   * kept, but these flags cross Crossing (1) so Stage 6 can judge it — and
+   * fail closed if Stage 6 is unavailable.
+   */
+  flaggedCategoryIds: string[];
+  /** Exact SHA-256 of the normalised prompt (dedup ledger + provenance, D-23). */
+  exactHash: string;
+  /** 64-bit SimHash of the normalised prompt (near-duplicate detection). */
+  simHash: string;
 };
 
 export type ExcludedPrompt = {
@@ -46,6 +57,7 @@ export type RefinedSessionSummary = {
   inputPromptCount: number;
   refinedPromptCount: number;
   excludedPromptCount: number;
+  flaggedPromptCount: number;
   redactionCount: number;
   titleRedacted: boolean;
   affected: boolean;
@@ -57,6 +69,7 @@ export type PromptRefinementResult = {
   selectedChatCount: number;
   inputPromptCount: number;
   redactionCount: number;
+  flaggedPromptCount: number;
   sessions: RefinedSessionSummary[];
   prompts: RefinedPrompt[];
   excludedPrompts: ExcludedPrompt[];
@@ -550,6 +563,7 @@ export function refineSelectedSessions(
   const sessionSummaries: RefinedSessionSummary[] = [];
   let inputPromptCount = 0;
   let totalRedactions = 0;
+  let totalFlagged = 0;
 
   sessions.forEach((session) => {
     const safeSessionTitle = refineSessionTitle(session.title, loggedInUserName);
@@ -559,6 +573,7 @@ export function refineSelectedSessions(
     let sessionRedactions = 0;
     let sessionExcluded = 0;
     let sessionRefined = 0;
+    let sessionFlagged = 0;
 
     userMessages.forEach((message, promptIndex) => {
         inputPromptCount += 1;
@@ -578,9 +593,15 @@ export function refineSelectedSessions(
         }
 
         const refined = redactPrompt(message.text, loggedInUserName);
+        const flaggedCategoryIds = findFlaggedCategories(message.text);
+        const fingerprint = fingerprintPrompt(message.text);
         sessionRefined += 1;
         sessionRedactions += refined.count;
         totalRedactions += refined.count;
+        if (flaggedCategoryIds.length > 0) {
+          sessionFlagged += 1;
+          totalFlagged += 1;
+        }
         prompts.push({
           id,
           sessionId: session.id,
@@ -589,6 +610,9 @@ export function refineSelectedSessions(
           refinedText: refined.text,
           redactionCount: refined.count,
           redactionTypes: refined.types,
+          flaggedCategoryIds,
+          exactHash: fingerprint.exactHash,
+          simHash: fingerprint.simHash,
         });
       });
 
@@ -598,6 +622,7 @@ export function refineSelectedSessions(
       inputPromptCount: userMessages.length,
       refinedPromptCount: sessionRefined,
       excludedPromptCount: sessionExcluded,
+      flaggedPromptCount: sessionFlagged,
       redactionCount: sessionRedactions,
       titleRedacted: safeSessionTitle !== session.title,
       affected:
@@ -613,6 +638,7 @@ export function refineSelectedSessions(
     selectedChatCount: sessions.length,
     inputPromptCount,
     redactionCount: totalRedactions,
+    flaggedPromptCount: totalFlagged,
     sessions: sessionSummaries,
     prompts,
     excludedPrompts,

@@ -88,6 +88,11 @@ export default function RefinedPromptsView({
           <ThemedText selectable type="small" style={styles.retentionNote}>
             {result.redactionCount} identifier changes
           </ThemedText>
+          {result.flaggedPromptCount > 0 ? (
+            <ThemedText selectable type="small" style={styles.retentionNote}>
+              {result.flaggedPromptCount} flagged for a second server review
+            </ThemedText>
+          ) : null}
         </View>
       </View>
 
