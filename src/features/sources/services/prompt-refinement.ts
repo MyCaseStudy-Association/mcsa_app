@@ -27,6 +27,10 @@ export type RefinedPrompt = {
   id: string;
   sessionId: string;
   sessionTitle: string;
+  /** Original position among the user's prompts in the chat (Build #1). */
+  turnIndex: number;
+  /** Epoch seconds of the source chat's creation, when the export has it. */
+  capturedAt?: number;
   originalText: string;
   refinedText: string;
   redactionCount: number;
@@ -65,6 +69,8 @@ export type RefinedSessionSummary = {
 
 export type PromptRefinementResult = {
   rulesetVersion: string;
+  /** Which assistant the export came from — retained server-side only. */
+  sourceProvider: string;
   processedAt: number;
   selectedChatCount: number;
   inputPromptCount: number;
@@ -606,6 +612,8 @@ export function refineSelectedSessions(
           id,
           sessionId: session.id,
           sessionTitle: safeSessionTitle,
+          turnIndex: promptIndex,
+          capturedAt: session.createdAt,
           originalText: message.text,
           refinedText: refined.text,
           redactionCount: refined.count,
@@ -634,6 +642,7 @@ export function refineSelectedSessions(
 
   return {
     rulesetVersion: RULESET_VERSION,
+    sourceProvider: sessions[0]?.provider ?? "unknown",
     processedAt: Date.now(),
     selectedChatCount: sessions.length,
     inputPromptCount,

@@ -661,6 +661,35 @@ export default function SourcesScreen() {
                   </ThemedText>
                 </View>
               ) : null}
+              {(serverReview.conversations ?? []).filter(
+                (conversation) => conversation.consentReceiptRef,
+              ).length > 0 ? (
+                <View style={styles.consentTermRow}>
+                  <Ionicons
+                    name="receipt-outline"
+                    size={18}
+                    color={colors.primaryTeal}
+                  />
+                  <ThemedText
+                    selectable
+                    type="small"
+                    style={styles.consentTermText}
+                  >
+                    {
+                      (serverReview.conversations ?? []).filter(
+                        (conversation) => conversation.consentReceiptRef,
+                      ).length
+                    }{" "}
+                    consent{" "}
+                    {(serverReview.conversations ?? []).filter(
+                      (conversation) => conversation.consentReceiptRef,
+                    ).length === 1
+                      ? "receipt"
+                      : "receipts"}{" "}
+                    issued — one per conversation, revocable while unsold
+                  </ThemedText>
+                </View>
+              ) : null}
             </View>
           ) : null}
           <Pressable

@@ -21,10 +21,15 @@ import type {
 
 export type OutboundRecord = {
   clientRecordId: string;
+  /** Build #1 (APP-D-08): groups prompts of one chat. Counts/ids only. */
+  conversationId: string;
+  /** Original position in the chat — order is the product. */
+  turnIndex: number;
   refinedText: string;
   flaggedCategoryIds: string[];
   exactHash: string;
   simHash: string;
+  capturedAt?: number;
 };
 
 export type RecordOutcome = {
@@ -34,12 +39,37 @@ export type RecordOutcome = {
   attestationId: string | null;
 };
 
+export type ConversationSummary = {
+  conversationId: string;
+  keptCount: number;
+  consentReceiptRef: string | null;
+  packagedRecordRef: string | null;
+};
+
 export type ProcessRecordsResponse = {
   results: RecordOutcome[];
+  conversations: ConversationSummary[];
   policyVersion: string;
   keptCount: number;
   excludedCount: number;
   droppedCount: number;
+};
+
+/**
+ * Stage 5 consent context (Build #4). Mirrors exactly what the consent
+ * modal shows; the server folds it into the per-conversation consent
+ * receipt (§5.2, Kantara / ISO 27560 pattern). Bump the version whenever
+ * the consent copy changes.
+ */
+export const CONSENT_CONTEXT = {
+  disclosuresVersion: "2026-08-12.1",
+  disclosuresShown: [
+    "sold_is_final", // D-18: sold data cannot be recalled
+    "unsold_deletable_anytime", // D-18: two-stage withdrawal disclosure
+    "own_earnings_only", // D-33: platform split not shown
+  ],
+  buyerCategories: ["model_developer", "research_institution"],
+  jurisdiction: "US" as "US" | "CA",
 };
 
 export class RefinementApiError extends Error {
@@ -57,11 +87,19 @@ export function toOutboundRecords(
 ): OutboundRecord[] {
   return result.prompts.map((prompt: RefinedPrompt) => ({
     clientRecordId: prompt.id,
+    conversationId: prompt.sessionId,
+    turnIndex: prompt.turnIndex,
     refinedText: prompt.refinedText,
     flaggedCategoryIds: prompt.flaggedCategoryIds,
     exactHash: prompt.exactHash,
     simHash: prompt.simHash,
+    ...(prompt.capturedAt ? { capturedAt: toEpochSeconds(prompt.capturedAt) } : {}),
   }));
+}
+
+/** Exports mix epoch seconds and milliseconds; the server expects seconds. */
+function toEpochSeconds(value: number): number {
+  return Math.floor(value > 1e12 ? value / 1000 : value);
 }
 
 export async function submitForServerRefinement(
@@ -76,6 +114,7 @@ export async function submitForServerRefinement(
   if (records.length === 0) {
     return {
       results: [],
+      conversations: [],
       policyVersion: "",
       keptCount: 0,
       excludedCount: 0,
@@ -93,6 +132,8 @@ export async function submitForServerRefinement(
       },
       body: JSON.stringify({
         rulesetVersion: result.rulesetVersion,
+        sourceProvider: result.sourceProvider,
+        consent: CONSENT_CONTEXT,
         records,
       }),
     });
