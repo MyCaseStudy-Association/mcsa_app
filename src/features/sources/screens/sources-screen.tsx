@@ -11,6 +11,7 @@ import { AuthNotice } from "@/features/auth/components/auth-notice";
 import { PrimaryButton } from "@/features/auth/components/primary-button";
 import { useAuth } from "@/features/auth/providers/auth-provider";
 import { ChatViewerModal } from "@/features/sources/components/chat-viewer-modal";
+import { RefinedSessionModal } from "@/features/sources/components/refined-session-modal";
 import { SourceInfoModal } from "@/features/sources/components/source-info-modal";
 import {
   CHAT_SOURCES,
@@ -50,6 +51,10 @@ export default function SourcesScreen() {
   const [result, setResult] = useState<ImportResult | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [viewing, setViewing] = useState<ChatSession | null>(null);
+  // Per-chat review (marks in place) once the chat has been refined.
+  const [reviewingSessionId, setReviewingSessionId] = useState<string | null>(
+    null,
+  );
   const [finishing, setFinishing] = useState(false);
   const [consentAccepted, setConsentAccepted] = useState(false);
   const [consentModalOpen, setConsentModalOpen] = useState(false);
@@ -455,9 +460,17 @@ export default function SourcesScreen() {
                     </Pressable>
                     {hasChat ? (
                       <Pressable
-                        accessibilityLabel={`Preview ${session.title}`}
+                        accessibilityLabel={
+                          summary
+                            ? `Review refined prompts of ${session.title}`
+                            : `Preview ${session.title}`
+                        }
                         accessibilityRole="button"
-                        onPress={() => setViewing(session)}
+                        onPress={() =>
+                          summary && refinementResult
+                            ? setReviewingSessionId(session.id)
+                            : setViewing(session)
+                        }
                         style={({ pressed }) => [
                           styles.viewButton,
                           pressed && styles.pressed,
@@ -495,6 +508,11 @@ export default function SourcesScreen() {
           </View>
 
           <ChatViewerModal session={viewing} onClose={() => setViewing(null)} />
+          <RefinedSessionModal
+            result={refinementResult}
+            sessionId={reviewingSessionId}
+            onClose={() => setReviewingSessionId(null)}
+          />
         </AppScreen>
         <SmoothModal
           contentStyle={styles.consentModal}

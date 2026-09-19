@@ -7,9 +7,15 @@ import { FormattedMessage } from "@/features/sources/components/formatted-messag
 import { AppPalette, Spacing } from "@/theme/theme";
 import { useColors } from "@/theme/theme-provider";
 
+export type ThreadTone = "default" | "excluded" | "flagged";
+
 export type ThreadPrompt = {
   id: string;
   text: string;
+  /** Border + number colour: red = excluded, amber = flagged for server review. */
+  tone?: ThreadTone;
+  /** Chip row rendered above the text (status / reason). */
+  badge?: ReactNode;
   footer?: ReactNode;
 };
 
@@ -37,7 +43,10 @@ export function PromptThread({ prompts }: PromptThreadProps) {
           prompt.text.length > COLLAPSED_PROMPT_LENGTH ||
           prompt.text.split("\n").length > COLLAPSED_LINE_COUNT;
         const isExpanded = expandedIds.has(prompt.id);
-        const previewText = canExpand ? toPreviewText(prompt.text) : prompt.text;
+        const previewText = canExpand
+          ? toPreviewText(prompt.text)
+          : prompt.text;
+        const tone = prompt.tone ?? "default";
 
         return (
           <View
@@ -46,25 +55,48 @@ export function PromptThread({ prompts }: PromptThreadProps) {
             style={[styles.row, !isLast && styles.rowSpacing]}
           >
             <View style={styles.rail}>
-              <View style={styles.node}>
-                <ThemedText style={styles.nodeNumber}>{index + 1}</ThemedText>
+              <View
+                style={[
+                  styles.node,
+                  tone === "excluded" && styles.nodeExcluded,
+                  tone === "flagged" && styles.nodeFlagged,
+                ]}
+              >
+                <ThemedText
+                  style={[
+                    styles.nodeNumber,
+                    tone === "excluded" && styles.nodeNumberExcluded,
+                    tone === "flagged" && styles.nodeNumberFlagged,
+                  ]}
+                >
+                  {index + 1}
+                </ThemedText>
               </View>
               {!isLast ? <View style={styles.railLine} /> : null}
             </View>
 
-            <View style={styles.bubble}>
-              {canExpand && !isExpanded ? (
-                <ThemedText
-                  ellipsizeMode="tail"
-                  numberOfLines={COLLAPSED_LINE_COUNT}
-                  selectable
-                  style={styles.preview}
-                >
-                  {previewText}
-                </ThemedText>
-              ) : (
-                <FormattedMessage text={prompt.text} />
-              )}
+            <View
+              style={[
+                styles.bubble,
+                tone === "excluded" && styles.bubbleExcluded,
+                tone === "flagged" && styles.bubbleFlagged,
+              ]}
+            >
+              {prompt.badge}
+              <View style={tone === "excluded" && styles.dimmed}>
+                {canExpand && !isExpanded ? (
+                  <ThemedText
+                    ellipsizeMode="tail"
+                    numberOfLines={COLLAPSED_LINE_COUNT}
+                    selectable
+                    style={styles.preview}
+                  >
+                    {previewText}
+                  </ThemedText>
+                ) : (
+                  <FormattedMessage text={prompt.text} />
+                )}
+              </View>
 
               {canExpand ? (
                 <Pressable
@@ -150,6 +182,18 @@ function createStyles(c: AppPalette) {
       fontWeight: "800",
       lineHeight: 14,
     },
+    nodeExcluded: {
+      borderColor: c.danger,
+    },
+    nodeFlagged: {
+      borderColor: c.warning,
+    },
+    nodeNumberExcluded: {
+      color: c.danger,
+    },
+    nodeNumberFlagged: {
+      color: c.warning,
+    },
     railLine: {
       backgroundColor: c.cardBorder,
       borderRadius: 1,
@@ -169,6 +213,17 @@ function createStyles(c: AppPalette) {
       gap: Spacing.two,
       minWidth: 0,
       padding: Spacing.three,
+    },
+    bubbleExcluded: {
+      borderColor: c.danger,
+      borderWidth: 1.5,
+    },
+    bubbleFlagged: {
+      borderColor: c.warning,
+      borderWidth: 1.5,
+    },
+    dimmed: {
+      opacity: 0.72,
     },
     preview: {
       color: c.glassText,

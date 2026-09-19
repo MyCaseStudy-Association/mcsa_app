@@ -5,74 +5,94 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { SmoothModal } from "@/components/ui/smooth-modal";
 import { ThemedText } from "@/components/ui/themed-text";
-import { PromptThread } from "@/features/sources/components/prompt-thread";
-import type {
-  RefinedPrompt,
-  RefinedSessionSummary,
-} from "@/features/sources/services/prompt-refinement";
+import {
+  PromptThread,
+  type ThreadPrompt,
+} from "@/features/sources/components/prompt-thread";
+import type { PromptRefinementResult } from "@/features/sources/services/prompt-refinement";
+import {
+  buildSessionReview,
+  formatCategoryId,
+  type ReviewedPrompt,
+} from "@/features/sources/services/session-review";
 import { AppPalette, Spacing } from "@/theme/theme";
 import { useColors } from "@/theme/theme-provider";
 
 type RefinedSessionModalProps = {
-  session: RefinedSessionSummary | null;
-  prompts: RefinedPrompt[];
+  result: PromptRefinementResult | null;
+  sessionId: string | null;
   onClose: () => void;
 };
 
+/**
+ * Per-chat review: every user prompt of the chat, in original order, marked
+ * in place — excluded (red, stays on device), flagged (amber, server takes a
+ * second look), redacted (chips + "show original"), or untouched.
+ */
 export function RefinedSessionModal({
-  session,
-  prompts,
+  result,
+  sessionId,
   onClose,
 }: RefinedSessionModalProps) {
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const [displayedSession, setDisplayedSession] = useState(session);
+  // Keep the last session rendered while the modal animates closed.
+  const [displayedSessionId, setDisplayedSessionId] = useState(sessionId);
+  const [showingOriginal, setShowingOriginal] = useState<Set<string>>(
+    new Set(),
+  );
 
   useEffect(() => {
-    if (session) {
-      setDisplayedSession(session);
+    if (sessionId) {
+      setDisplayedSessionId(sessionId);
+      setShowingOriginal(new Set());
     }
-  }, [session]);
+  }, [sessionId]);
 
-  const sessionPrompts = displayedSession
-    ? prompts.filter((prompt) => prompt.sessionId === displayedSession.id)
-    : [];
+  const review =
+    result && displayedSessionId
+      ? buildSessionReview(result, displayedSessionId)
+      : null;
 
-  const threadPrompts = sessionPrompts.map((prompt) => ({
-    id: prompt.id,
-    text: prompt.refinedText,
-    footer:
-      prompt.redactionTypes.length > 0 ? (
-        <View style={styles.tags}>
-          {prompt.redactionTypes.map((type) => (
-            <View key={type} style={styles.tag}>
-              <Ionicons
-                name="shield-half-outline"
-                size={11}
-                color={colors.primaryTeal}
-              />
-              <ThemedText selectable type="smallBold" style={styles.tagText}>
-                {formatRedactionType(type)}
-              </ThemedText>
-            </View>
-          ))}
-        </View>
-      ) : undefined,
-  }));
+  const toggleOriginal = (id: string) =>
+    setShowingOriginal((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
-  const excludedCount = displayedSession?.excludedPromptCount ?? 0;
+  const threadPrompts: ThreadPrompt[] = (review?.prompts ?? []).map(
+    (prompt) => {
+      const original = showingOriginal.has(prompt.id);
+      return {
+        id: prompt.id,
+        text: original && prompt.originalText ? prompt.originalText : prompt.text,
+        tone:
+          prompt.status === "excluded"
+            ? "excluded"
+            : prompt.status === "flagged"
+              ? "flagged"
+              : "default",
+        badge: renderBadge(prompt, styles, colors),
+        footer: renderFooter(prompt, original, toggleOriginal, styles, colors),
+      };
+    },
+  );
+
+  const counts = review?.counts;
 
   return (
     <SmoothModal
       contentStyle={[styles.screen, { paddingTop: insets.top }]}
       onClose={onClose}
       placement="full"
-      visible={session !== null}
+      visible={sessionId !== null}
     >
       <View style={styles.header}>
         <Pressable
-          accessibilityLabel="Back to refined sessions"
+          accessibilityLabel="Back to chats"
           accessibilityRole="button"
           hitSlop={8}
           onPress={onClose}
@@ -89,30 +109,38 @@ export function RefinedSessionModal({
             numberOfLines={1}
             style={styles.title}
           >
-            {displayedSession?.title ?? "Refined chat"}
+            {review?.title ?? "Refined chat"}
           </ThemedText>
           <View style={styles.metaRow}>
-            <View style={styles.metaChip}>
-              <Ionicons
-                name="checkmark-circle-outline"
-                size={12}
+            <MetaChip
+              icon="checkmark-circle-outline"
+              label={`${counts?.kept ?? 0} kept`}
+              color={colors.primaryTeal}
+              styles={styles}
+            />
+            {counts && counts.redacted > 0 ? (
+              <MetaChip
+                icon="shield-half-outline"
+                label={`${counts.redacted} redacted`}
                 color={colors.primaryTeal}
+                styles={styles}
               />
-              <ThemedText type="smallBold" style={styles.metaText}>
-                {displayedSession?.refinedPromptCount ?? 0} refined
-              </ThemedText>
-            </View>
-            {excludedCount > 0 ? (
-              <View style={styles.metaChip}>
-                <Ionicons
-                  name="eye-off-outline"
-                  size={12}
-                  color={colors.primaryTeal}
-                />
-                <ThemedText type="smallBold" style={styles.metaText}>
-                  {excludedCount} excluded
-                </ThemedText>
-              </View>
+            ) : null}
+            {counts && counts.flagged > 0 ? (
+              <MetaChip
+                icon="alert-circle-outline"
+                label={`${counts.flagged} flagged`}
+                color={colors.warning}
+                styles={styles}
+              />
+            ) : null}
+            {counts && counts.excluded > 0 ? (
+              <MetaChip
+                icon="eye-off-outline"
+                label={`${counts.excluded} excluded`}
+                color={colors.danger}
+                styles={styles}
+              />
             ) : null}
           </View>
         </View>
@@ -127,8 +155,21 @@ export function RefinedSessionModal({
         showsVerticalScrollIndicator={false}
       >
         {threadPrompts.length > 0 ? (
-          <PromptThread key={displayedSession?.id} prompts={threadPrompts} />
-        ) : displayedSession ? (
+          <>
+            <PromptThread key={displayedSessionId} prompts={threadPrompts} />
+            <View style={styles.legend}>
+              <Ionicons
+                name="lock-closed-outline"
+                size={13}
+                color={colors.glassMuted}
+              />
+              <ThemedText type="small" style={styles.legendText}>
+                Red prompts never leave this device. Placeholders like [EMAIL]
+                are what a buyer would see.
+              </ThemedText>
+            </View>
+          </>
+        ) : displayedSessionId ? (
           <View style={styles.emptyCard}>
             <View style={styles.emptyIcon}>
               <Ionicons
@@ -138,15 +179,160 @@ export function RefinedSessionModal({
               />
             </View>
             <ThemedText type="smallBold" style={styles.emptyTitle}>
-              Nothing left to share
+              Nothing to review yet
             </ThemedText>
             <ThemedText type="small" style={styles.emptyText}>
-              No prompts from this chat remain after refinement.
+              This chat has no user prompts.
             </ThemedText>
           </View>
         ) : null}
       </ScrollView>
     </SmoothModal>
+  );
+}
+
+type ModalStyles = ReturnType<typeof createStyles>;
+
+function MetaChip({
+  icon,
+  label,
+  color,
+  styles,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  color: string;
+  styles: ModalStyles;
+}) {
+  return (
+    <View style={styles.metaChip}>
+      <Ionicons name={icon} size={12} color={color} />
+      <ThemedText type="smallBold" style={[styles.metaText, { color }]}>
+        {label}
+      </ThemedText>
+    </View>
+  );
+}
+
+/** Status chip row above the text: only for prompts that need explaining. */
+function renderBadge(
+  prompt: ReviewedPrompt,
+  styles: ModalStyles,
+  colors: AppPalette,
+) {
+  if (prompt.status === "excluded") {
+    return (
+      <View style={styles.badgeRow}>
+        <View style={[styles.badge, styles.badgeDanger]}>
+          <Ionicons name="eye-off-outline" size={11} color={colors.danger} />
+          <ThemedText
+            selectable
+            type="smallBold"
+            style={[
+              styles.badgeText,
+              styles.badgeTextCategory,
+              { color: colors.danger },
+            ]}
+          >
+            Excluded · {prompt.categoryIds.map(formatCategoryId).join(", ")}
+          </ThemedText>
+        </View>
+        <View style={styles.badge}>
+          <Ionicons
+            name="phone-portrait-outline"
+            size={11}
+            color={colors.glassMuted}
+          />
+          <ThemedText type="smallBold" style={styles.badgeText}>
+            Stays on this device
+          </ThemedText>
+        </View>
+      </View>
+    );
+  }
+  if (prompt.status === "flagged") {
+    return (
+      <View style={styles.badgeRow}>
+        <View style={[styles.badge, styles.badgeWarning]}>
+          <Ionicons
+            name="alert-circle-outline"
+            size={11}
+            color={colors.warning}
+          />
+          <ThemedText
+            selectable
+            type="smallBold"
+            style={[
+              styles.badgeText,
+              styles.badgeTextCategory,
+              { color: colors.warning },
+            ]}
+          >
+            Flagged · {prompt.categoryIds.map(formatCategoryId).join(", ")} ·
+            server double-checks
+          </ThemedText>
+        </View>
+      </View>
+    );
+  }
+  return undefined;
+}
+
+/** Redaction chips + the before/after toggle for prompts whose text changed. */
+function renderFooter(
+  prompt: ReviewedPrompt,
+  showingOriginal: boolean,
+  toggleOriginal: (id: string) => void,
+  styles: ModalStyles,
+  colors: AppPalette,
+) {
+  if (prompt.status === "excluded") return undefined;
+  const hasTags = prompt.redactionTypes.length > 0;
+  const canCompare = prompt.originalText !== undefined;
+  if (!hasTags && !canCompare) return undefined;
+
+  return (
+    <View style={styles.footer}>
+      {hasTags ? (
+        <View style={styles.tags}>
+          {prompt.redactionTypes.map((type) => (
+            <View key={type} style={styles.tag}>
+              <Ionicons
+                name="shield-half-outline"
+                size={11}
+                color={colors.primaryTeal}
+              />
+              <ThemedText selectable type="smallBold" style={styles.tagText}>
+                {formatRedactionType(type)}
+              </ThemedText>
+            </View>
+          ))}
+        </View>
+      ) : null}
+      {canCompare ? (
+        <Pressable
+          accessibilityLabel={
+            showingOriginal
+              ? "Show the version that will be shared"
+              : "Show the original text"
+          }
+          accessibilityRole="button"
+          accessibilityState={{ selected: showingOriginal }}
+          hitSlop={6}
+          onPress={() => toggleOriginal(prompt.id)}
+          style={({ pressed }) => [styles.toggle, pressed && styles.pressed]}
+        >
+          <Ionicons
+            name={showingOriginal ? "eye-off-outline" : "eye-outline"}
+            size={13}
+            color={colors.primaryTeal}
+          />
+          <ThemedText type="smallBold" style={styles.toggleText}>
+            {showingOriginal ? "Show shared version" : "Show original"}
+          </ThemedText>
+        </Pressable>
+      ) : null}
+    </View>
   );
 }
 
@@ -220,6 +406,39 @@ function createStyles(c: AppPalette) {
       paddingHorizontal: Spacing.three,
       paddingTop: Spacing.three,
     },
+    badgeRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: Spacing.one,
+    },
+    badge: {
+      alignItems: "center",
+      backgroundColor: c.noteSurface,
+      borderColor: c.noteBorder,
+      borderRadius: 999,
+      borderWidth: 1,
+      flexDirection: "row",
+      gap: Spacing.one,
+      paddingHorizontal: Spacing.two,
+      paddingVertical: 3,
+    },
+    badgeDanger: {
+      borderColor: c.danger,
+    },
+    badgeWarning: {
+      borderColor: c.warning,
+    },
+    badgeText: {
+      color: c.glassMuted,
+      fontSize: 10,
+      lineHeight: 13,
+    },
+    badgeTextCategory: {
+      textTransform: "capitalize",
+    },
+    footer: {
+      gap: Spacing.two,
+    },
     tags: {
       flexDirection: "row",
       flexWrap: "wrap",
@@ -239,6 +458,34 @@ function createStyles(c: AppPalette) {
       fontSize: 10,
       lineHeight: 13,
       textTransform: "capitalize",
+    },
+    toggle: {
+      alignItems: "center",
+      alignSelf: "flex-start",
+      borderColor: c.cardBorder,
+      borderRadius: 999,
+      borderWidth: 1,
+      flexDirection: "row",
+      gap: Spacing.one,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+    },
+    toggleText: {
+      color: c.primaryTeal,
+      fontSize: 12,
+    },
+    legend: {
+      alignItems: "flex-start",
+      flexDirection: "row",
+      gap: Spacing.one,
+      marginTop: Spacing.four,
+      paddingHorizontal: Spacing.one,
+    },
+    legendText: {
+      color: c.glassMuted,
+      flex: 1,
+      fontSize: 12,
+      lineHeight: 17,
     },
     emptyCard: {
       alignItems: "center",

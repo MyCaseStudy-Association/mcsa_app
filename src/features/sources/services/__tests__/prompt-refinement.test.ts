@@ -121,6 +121,7 @@ describe("refineSelectedSessions", () => {
     expect(result.inputPromptCount).toBe(3);
     expect(result.prompts).toHaveLength(2);
     expect(result.excludedPrompts).toHaveLength(1);
+    expect(result.excludedPrompts[0].turnIndex).toBe(2);
     expect(result.flaggedPromptCount).toBe(1);
 
     const flagged = result.prompts.find((prompt) =>

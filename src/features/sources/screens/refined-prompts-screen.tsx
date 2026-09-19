@@ -22,11 +22,6 @@ export default function RefinedPromptsView({
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [detailKind, setDetailKind] = useState<RefinementDetailKind | null>(null);
 
-  const excludedCategories = [
-    ...new Set(
-      result.excludedPrompts.flatMap((prompt) => prompt.categoryIds),
-    ),
-  ];
   const retentionRate =
     result.inputPromptCount === 0
       ? 0
@@ -132,42 +127,11 @@ export default function RefinedPromptsView({
 
       {result.excludedPrompts.length > 0 ? (
         <View style={styles.sectionHeader}>
-          <ThemedText type="smallBold" style={styles.sectionTitle}>
-            Review details
-          </ThemedText>
           <ThemedText type="small" style={styles.sectionHint}>
-            Tap to inspect
+            Tap a chat&apos;s eye icon to see excluded and redacted prompts in
+            place.
           </ThemedText>
         </View>
-      ) : null}
-
-      {result.excludedPrompts.length > 0 ? (
-        <Pressable
-          accessibilityLabel={`Review ${result.excludedPrompts.length} excluded sensitive prompts`}
-          accessibilityRole="button"
-          onPress={() => setDetailKind("excluded")}
-          style={({ pressed }) => [
-            styles.excludedCard,
-            pressed && styles.pressed,
-          ]}
-        >
-          <View style={styles.actionIcon}>
-            <Ionicons
-              name="eye-off-outline"
-              size={20}
-              color={colors.primaryTeal}
-            />
-          </View>
-          <View style={styles.excludedCopy}>
-            <ThemedText selectable type="smallBold" style={styles.excludedTitle}>
-              {result.excludedPrompts.length} sensitive {result.excludedPrompts.length === 1 ? "prompt was" : "prompts were"} excluded
-            </ThemedText>
-            <ThemedText selectable type="small" style={styles.excludedText}>
-              Categories: {excludedCategories.map(formatCategory).join(", ")}.
-            </ThemedText>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.glassMuted} />
-        </Pressable>
       ) : null}
 
       <RefinementDetailsModal
@@ -215,10 +179,6 @@ function StatCard({
       </ThemedText>
     </Pressable>
   );
-}
-
-function formatCategory(category: string) {
-  return category.replaceAll("_", " ");
 }
 
 function formatProcessedAt(timestamp: number) {
@@ -350,37 +310,10 @@ function createStyles(c: AppPalette) {
       lineHeight: 12,
       textAlign: "center",
     },
-    excludedCard: {
-      alignItems: "center",
-      backgroundColor: c.surface,
-      borderColor: c.cardBorder,
-      borderCurve: "continuous",
-      borderRadius: 18,
-      borderWidth: 1,
-      boxShadow: "0 4px 14px rgba(7, 58, 53, 0.05)",
-      flexDirection: "row",
-      gap: Spacing.three,
-      padding: Spacing.three,
-    },
-    actionIcon: {
-      alignItems: "center",
-      backgroundColor: c.lightTealBackground,
-      borderRadius: 12,
-      height: 42,
-      justifyContent: "center",
-      width: 42,
-    },
-    excludedCopy: { flex: 1, gap: Spacing.half },
-    excludedTitle: { color: c.glassText, fontSize: 13 },
-    excludedText: { color: c.glassMuted, fontSize: 12, lineHeight: 18 },
     sectionHeader: {
-      alignItems: "center",
-      flexDirection: "row",
-      justifyContent: "space-between",
       paddingHorizontal: Spacing.one,
     },
-    sectionTitle: { color: c.glassText, fontSize: 15 },
-    sectionHint: { color: c.glassMuted, fontSize: 11 },
+    sectionHint: { color: c.glassMuted, fontSize: 11, lineHeight: 16 },
     pressed: { opacity: 0.7 },
   });
 }

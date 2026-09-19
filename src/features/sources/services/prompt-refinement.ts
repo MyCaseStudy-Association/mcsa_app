@@ -51,6 +51,8 @@ export type ExcludedPrompt = {
   id: string;
   sessionId: string;
   sessionTitle: string;
+  /** Original position among the user's prompts — lets the review show the gap in place. */
+  turnIndex: number;
   originalText: string;
   categoryIds: string[];
 };
@@ -592,6 +594,7 @@ export function refineSelectedSessions(
             id,
             sessionId: session.id,
             sessionTitle: safeSessionTitle,
+            turnIndex: promptIndex,
             originalText: message.text,
             categoryIds,
           });
