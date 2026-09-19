@@ -97,6 +97,16 @@ async function readFileBytes(uri: string): Promise<Uint8Array> {
     errors.push(`legacy.base64: ${errorText(error)}`);
   }
 
+  // 4) Web — the picker returns a blob: URL that only the browser's fetch can
+  //    read. Stays in memory on this device; nothing is uploaded.
+  try {
+    const response = await fetch(uri);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return new Uint8Array(await response.arrayBuffer());
+  } catch (error) {
+    errors.push(`fetch: ${errorText(error)}`);
+  }
+
   if (__DEV__) {
     console.warn('[chat-import] read failed:', uri, errors);
   }
