@@ -19,17 +19,31 @@ import {
 } from "@/features/sources/data/chat-sources";
 import RefinedPromptsView from "@/features/sources/screens/refined-prompts-screen";
 import {
+  type DeviceBrief,
+  type MatchCandidate,
+  matchedBriefRefs,
+  redactionDensity,
+} from "@/features/sources/services/brief-match";
+import {
+  BriefsApiError,
+  fetchBriefPush,
+  type MatchedConversationReport,
+  reportBriefMatches,
+} from "@/features/sources/services/briefs-api";
+import {
   ChatImportError,
   ChatSession,
   ImportResult,
   importChatArchive,
 } from "@/features/sources/services/chat-import";
+import { tagConversation } from "@/features/sources/services/domain-tagger";
 import {
   type PromptRefinementResult,
   type RefinedSessionSummary,
   refineSelectedSessions,
 } from "@/features/sources/services/prompt-refinement";
 import {
+  CONSENT_CONTEXT,
   type ProcessRecordsResponse,
   RefinementApiError,
   submitForServerRefinement,
@@ -37,6 +51,53 @@ import {
 import { useRefresh } from "@/hooks/use-refresh";
 import { AppPalette, Spacing } from "@/theme/theme";
 import { useColors } from "@/theme/theme-provider";
+
+/** Everything the on-device matcher needs about one chat (Build #5). */
+function toMatchCandidate(
+  session: ChatSession,
+  refined: PromptRefinementResult,
+): MatchCandidate {
+  const originalPrompts = session.messages
+    .filter((message) => message.role === "user")
+    .map((message) => message.text);
+  const summary = refined.sessions.find((entry) => entry.id === session.id);
+  const refinedTexts = refined.prompts
+    .filter((prompt) => prompt.sessionId === session.id)
+    .map((prompt) => prompt.refinedText);
+  return {
+    originalPrompts,
+    keptPromptCount: summary?.refinedPromptCount ?? 0,
+    redactionDensity: redactionDensity(refinedTexts),
+    domainTags: tagConversation(originalPrompts),
+    language: null, // Build #8.2 language gate supplies the verdict
+  };
+}
+
+/** Match METADATA only, grouped per brief: conversation id, count, fingerprints. */
+async function reportMatchesForSubmission(
+  refined: PromptRefinementResult,
+  matches: Map<string, string[]>,
+): Promise<void> {
+  const byBrief = new Map<string, MatchedConversationReport[]>();
+  for (const summary of refined.sessions) {
+    const kept = refined.prompts
+      .filter((prompt) => prompt.sessionId === summary.id)
+      .sort((a, b) => a.turnIndex - b.turnIndex);
+    if (kept.length === 0) continue;
+    for (const briefRef of matches.get(summary.id) ?? []) {
+      const list = byBrief.get(briefRef) ?? [];
+      list.push({
+        conversationId: summary.id,
+        promptCount: kept.length,
+        fingerprints: kept.map((prompt) => prompt.exactHash),
+      });
+      byBrief.set(briefRef, list);
+    }
+  }
+  for (const [briefRef, conversations] of byBrief) {
+    await reportBriefMatches(briefRef, conversations);
+  }
+}
 
 export default function SourcesScreen() {
   const router = useRouter();
@@ -51,6 +112,13 @@ export default function SourcesScreen() {
   const [result, setResult] = useState<ImportResult | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [viewing, setViewing] = useState<ChatSession | null>(null);
+  // Build #5: briefs pushed for on-device matching (never listed) and the
+  // matched brief refs per chat. `briefs === null` = not fetched.
+  const [briefs, setBriefs] = useState<DeviceBrief[] | null>(null);
+  const [briefsError, setBriefsError] = useState("");
+  const [matchesBySession, setMatchesBySession] = useState<
+    Map<string, string[]>
+  >(new Map());
   // Per-chat review (marks in place) once the chat has been refined.
   const [reviewingSessionId, setReviewingSessionId] = useState<string | null>(
     null,
@@ -95,19 +163,52 @@ export default function SourcesScreen() {
 
     try {
       const imported = await importChatArchive(asset.uri, asset.name);
-      const selectableSessions = imported.sessions.filter(
+      const withPrompts = imported.sessions.filter(
         (session) => session.promptCount > 0,
       );
-      const selectedIds = new Set(
-        selectableSessions.map((session) => session.id),
+      // Stage 4 over every chat once, so matching can read kept counts and
+      // redaction density per chat.
+      const refinedAll = refineSelectedSessions(withPrompts, user?.name);
+
+      // Build #5: pull the live briefs (spec only) and match on-device.
+      // Fail closed: if briefs cannot be fetched, nothing is selectable.
+      const matches = new Map<string, string[]>();
+      let pushed: DeviceBrief[] | null = null;
+      setBriefsError("");
+      try {
+        pushed = (await fetchBriefPush()).briefs;
+        for (const session of withPrompts) {
+          matches.set(
+            session.id,
+            matchedBriefRefs(
+              toMatchCandidate(session, refinedAll),
+              pushed,
+              CONSENT_CONTEXT.buyerCategories,
+            ),
+          );
+        }
+      } catch (briefsFetchError) {
+        setBriefsError(
+          briefsFetchError instanceof BriefsApiError
+            ? briefsFetchError.message
+            : "Could not check buyer briefs right now.",
+        );
+      }
+
+      const matchedSessions = withPrompts.filter(
+        (session) => (matches.get(session.id) ?? []).length > 0,
       );
-      const refined = refineSelectedSessions(selectableSessions, user?.name);
+      const selectedIds = new Set(
+        matchedSessions.map((session) => session.id),
+      );
 
       setResult(imported);
+      setBriefs(pushed);
+      setMatchesBySession(matches);
       setSelected(selectedIds);
       setConsentAccepted(false);
-      setRefinementResult(refined);
-      setReviewSessionSummaries(refined.sessions);
+      setRefinementResult(refineSelectedSessions(matchedSessions, user?.name));
+      setReviewSessionSummaries(refinedAll.sessions);
     } catch (importError) {
       setResult(null);
       setSelected(new Set());
@@ -115,6 +216,8 @@ export default function SourcesScreen() {
       setConsentModalOpen(false);
       setRefinementResult(null);
       setReviewSessionSummaries([]);
+      setBriefs(null);
+      setMatchesBySession(new Map());
       setError(
         importError instanceof ChatImportError
           ? importError.message
@@ -161,6 +264,17 @@ export default function SourcesScreen() {
     try {
       const review = await submitForServerRefinement(refinementResult);
       setServerReview(review);
+      // Build #5: report match metadata (ids, counts, fingerprints) for the
+      // submitted conversations — never content. Non-fatal if it fails.
+      try {
+        await reportMatchesForSubmission(refinementResult, matchesBySession);
+      } catch (reportError) {
+        setBriefsError(
+          reportError instanceof BriefsApiError
+            ? reportError.message
+            : "Could not record the brief match.",
+        );
+      }
     } catch (submitError) {
       setError(
         submitError instanceof RefinementApiError
@@ -181,6 +295,9 @@ export default function SourcesScreen() {
     setConsentModalOpen(false);
     setRefinementResult(null);
     setReviewSessionSummaries([]);
+    setBriefs(null);
+    setBriefsError("");
+    setMatchesBySession(new Map());
     setServerReview(null);
     setResult(null);
     setSelected(new Set());
@@ -194,8 +311,13 @@ export default function SourcesScreen() {
 
   // Review step — hides the source list once an export is loaded.
   if (result) {
-    const selectableSessions = result.sessions.filter(
+    const listedSessions = result.sessions.filter(
       (session) => session.promptCount > 0,
+    );
+    // Only chats that match a live brief can be selected (D-13, demand-first);
+    // the others stay listed with an honest note (INV-10 pattern).
+    const selectableSessions = listedSessions.filter(
+      (session) => (matchesBySession.get(session.id) ?? []).length > 0,
     );
     const summaryBySessionId = new Map(
       reviewSessionSummaries.map((summary) => [summary.id, summary]),
@@ -295,6 +417,7 @@ export default function SourcesScreen() {
           }
         >
           {error ? <AuthNotice message={error} /> : null}
+          {briefsError ? <AuthNotice message={briefsError} /> : null}
 
           {refinementResult ? (
             <>
@@ -348,9 +471,12 @@ export default function SourcesScreen() {
             </View>
 
             <View style={styles.chatList}>
-              {selectableSessions.map((session) => {
+              {listedSessions.map((session) => {
                 const hasChat = session.promptCount > 0;
-                const isSelected = hasChat && selected.has(session.id);
+                const isMatched =
+                  (matchesBySession.get(session.id) ?? []).length > 0;
+                const canSelect = hasChat && isMatched;
+                const isSelected = canSelect && selected.has(session.id);
                 const summary = summaryBySessionId.get(session.id);
                 const wasRedacted = Boolean(
                   summary &&
@@ -377,9 +503,9 @@ export default function SourcesScreen() {
                       accessibilityRole="checkbox"
                       accessibilityState={{
                         checked: isSelected,
-                        disabled: !hasChat,
+                        disabled: !canSelect,
                       }}
-                      disabled={!hasChat}
+                      disabled={!canSelect}
                       onPress={() => toggle(session.id)}
                       style={({ pressed }) => [
                         styles.chatSelectArea,
@@ -390,7 +516,7 @@ export default function SourcesScreen() {
                         style={[
                           styles.checkbox,
                           isSelected && styles.checkboxOn,
-                          !hasChat && styles.checkboxDisabled,
+                          !canSelect && styles.checkboxDisabled,
                         ]}
                       >
                         {isSelected ? (
@@ -415,6 +541,45 @@ export default function SourcesScreen() {
                             {session.promptCount}{" "}
                             {session.promptCount === 1 ? "prompt" : "prompts"}
                           </ThemedText>
+                          {briefs !== null ? (
+                            isMatched ? (
+                              <View
+                                accessibilityLabel="Matches a live buyer brief"
+                                accessibilityRole="text"
+                                style={styles.matchBadge}
+                              >
+                                <Ionicons
+                                  name="pricetag-outline"
+                                  size={11}
+                                  color={colors.primaryTeal}
+                                />
+                                <ThemedText
+                                  type="smallBold"
+                                  style={styles.matchBadgeText}
+                                >
+                                  Matches a live brief
+                                </ThemedText>
+                              </View>
+                            ) : (
+                              <View
+                                accessibilityLabel="Does not match any current buyer brief"
+                                accessibilityRole="text"
+                                style={styles.noMatchBadge}
+                              >
+                                <Ionicons
+                                  name="remove-circle-outline"
+                                  size={11}
+                                  color={colors.glassMuted}
+                                />
+                                <ThemedText
+                                  type="smallBold"
+                                  style={styles.noMatchBadgeText}
+                                >
+                                  No match with current buyer briefs
+                                </ThemedText>
+                              </View>
+                            )
+                          ) : null}
                           {wasRedacted ? (
                             <View
                               accessibilityLabel="Personal identifiers redacted"
@@ -1487,6 +1652,36 @@ function createStyles(c: AppPalette) {
       flexDirection: "row",
       flexWrap: "wrap",
       gap: Spacing.one,
+    },
+    matchBadge: {
+      alignItems: "center",
+      backgroundColor: c.lightTealBackground,
+      borderRadius: 999,
+      flexDirection: "row",
+      gap: Spacing.half,
+      paddingHorizontal: Spacing.two,
+      paddingVertical: 2,
+    },
+    matchBadgeText: {
+      color: c.primaryTeal,
+      fontSize: 9,
+      lineHeight: 12,
+    },
+    noMatchBadge: {
+      alignItems: "center",
+      backgroundColor: c.fieldSurface,
+      borderColor: c.fieldBorder,
+      borderRadius: 999,
+      borderWidth: 1,
+      flexDirection: "row",
+      gap: Spacing.half,
+      paddingHorizontal: Spacing.two,
+      paddingVertical: 1,
+    },
+    noMatchBadgeText: {
+      color: c.glassMuted,
+      fontSize: 9,
+      lineHeight: 12,
     },
     redactedBadge: {
       alignItems: "center",

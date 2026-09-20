@@ -68,7 +68,10 @@ export const CONSENT_CONTEXT = {
     "unsold_deletable_anytime", // D-18: two-stage withdrawal disclosure
     "own_earnings_only", // D-33: platform split not shown
   ],
-  buyerCategories: ["model_developer", "research_institution"],
+  // Ratified taxonomy ids (server: src/briefs/taxonomy.ts, v0.2). Still a
+  // placeholder until the consent UI's category pre-auth toggles exist
+  // (Build #4 app half); the on-device brief matcher checks against this.
+  buyerCategories: ["ai_lab_commercial", "ai_research_nonprofit"],
   jurisdiction: "US" as "US" | "CA",
 };
 
