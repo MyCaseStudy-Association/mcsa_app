@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -58,12 +58,16 @@ export function RefinementDetailsModal({
     new Set(),
   );
 
-  useEffect(() => {
+  // On each (re)open: show the new kind and collapse everything. Tracked
+  // during render so reopening the same kind still resets.
+  const [previousKind, setPreviousKind] = useState(kind);
+  if (kind !== previousKind) {
+    setPreviousKind(kind);
     if (kind) {
       setDisplayedKind(kind);
       setExpandedPromptIds(new Set());
     }
-  }, [kind]);
+  }
 
   const copy = COPY[displayedKind];
   const redactedPrompts = result.prompts.filter(

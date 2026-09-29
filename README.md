@@ -31,7 +31,9 @@ npm run validate
 npx expo-doctor
 ```
 
-`validate` runs ESLint and TypeScript. Run both commands before opening a pull request.
+`validate` runs ESLint, TypeScript and the unit tests. Run both commands before opening a pull request.
+
+Formatting uses Prettier (`.prettierrc`, shared with the server): `npm run format:check` lists files that differ; `npm run format` rewrites them.
 
 ## Environment
 

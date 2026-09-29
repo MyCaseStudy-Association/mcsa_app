@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { SmoothModal } from '@/components/ui/smooth-modal';
@@ -17,13 +17,11 @@ type SourceInfoModalProps = {
 export function SourceInfoModal({ source, onClose, onUpload }: SourceInfoModalProps) {
   const { colors, scheme } = useAppTheme();
   const styles = useMemo(() => createStyles(colors, scheme), [colors, scheme]);
+  // Keep the last source rendered while the modal animates closed.
   const [displayedSource, setDisplayedSource] = useState(source);
-
-  useEffect(() => {
-    if (source) {
-      setDisplayedSource(source);
-    }
-  }, [source]);
+  if (source && source !== displayedSource) {
+    setDisplayedSource(source);
+  }
 
   return (
     <SmoothModal contentStyle={styles.sheet} visible={source !== null} onClose={onClose}>

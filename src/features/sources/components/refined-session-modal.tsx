@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -43,12 +43,15 @@ export function RefinedSessionModal({
     new Set(),
   );
 
-  useEffect(() => {
+  // On each (re)open: show that chat with every prompt on its shared version.
+  const [previousSessionId, setPreviousSessionId] = useState(sessionId);
+  if (sessionId !== previousSessionId) {
+    setPreviousSessionId(sessionId);
     if (sessionId) {
       setDisplayedSessionId(sessionId);
       setShowingOriginal(new Set());
     }
-  }, [sessionId]);
+  }
 
   const review =
     result && displayedSessionId

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { SmoothModal } from '@/components/ui/smooth-modal';
@@ -22,11 +22,15 @@ export function EditProfileModal({ visible, profile, onClose, onSave }: EditProf
   const [draft, setDraft] = useState(profile);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
+  // Reset the draft whenever the modal opens or the saved profile changes
+  // while it is open (same trigger as before, without an extra render).
+  const [syncedFrom, setSyncedFrom] = useState({ visible, profile });
+  if (syncedFrom.visible !== visible || syncedFrom.profile !== profile) {
+    setSyncedFrom({ visible, profile });
     if (visible) {
       setDraft(profile);
     }
-  }, [profile, visible]);
+  }
 
   function update(key: keyof UserProfile, value: string) {
     setDraft((current) => ({ ...current, [key]: value }));

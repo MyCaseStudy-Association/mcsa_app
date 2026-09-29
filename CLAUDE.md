@@ -13,6 +13,8 @@ npm start            # Expo dev server (Expo Go first)
 npm run ios | android | web
 npm run lint         # expo lint (ESLint flat config)
 npm run typecheck    # tsc --noEmit
+npm run format       # prettier --write . (config: .prettierrc)
+npm run format:check # prettier --check . — lists files that differ, changes nothing
 npm test             # jest, pure-TS services only
 npm run validate     # lint + typecheck + test  -> MUST pass before every commit
 npx expo-doctor      # run after touching package.json or app.json
@@ -43,6 +45,8 @@ mcsa/
   tsconfig.json            strict: true. Aliases: @/* -> src/*, @/assets/* -> assets/*
   eslint.config.js         expo flat config. Do not disable rules per-file without a comment.
   jest.config.js           testMatch: **/__tests__/**/*.test.ts, node env, ts-jest
+  .prettierrc              singleQuote, trailingComma all, endOfLine auto (same as mcsa_server + CRLF-safe). Do not change.
+  .prettierignore          Generated/vendored paths Prettier must never touch.
   AGENTS.md                Expo doc pointer (imported above). Keep it one line.
   README.md                Human-facing overview. Keep its "Project structure" in sync with this tree.
   assets/
@@ -130,6 +134,7 @@ Do these in order. Do not skip because the change "looks small".
 3. **Implement** following the rules above.
 4. **Verify structure:** run the audit below and confirm zero output.
 5. **Run `npm run validate`.** All three steps must pass. Do not commit on a failing lint, typecheck, or test.
+   Format only the files you changed (`npx prettier --write <files>`), never a whole folder, until the one-time repo-wide format commit lands.
 6. **Update docs** if you added a feature, a tab, a script, an env var, or a folder: this file, `README.md`, and `assets/README.md` as relevant.
 
 ### Structure audit (must print nothing)

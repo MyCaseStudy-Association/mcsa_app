@@ -18,7 +18,7 @@ function RootStack() {
         <Stack.Screen name="register" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="(tabs)" />
       </Stack>
-      <StatusBar backgroundColor={colors.screenBg} style={colors.statusBarStyle} />
+      <StatusBar style={colors.statusBarStyle} />
     </>
   );
 }

@@ -28,7 +28,7 @@ export function AuthDecor() {
 function createStyles(_c: AppPalette) {
   return StyleSheet.create({
   fill: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     overflow: 'hidden',
   },
   waves: {

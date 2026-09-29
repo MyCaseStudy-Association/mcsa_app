@@ -1,0 +1,10 @@
+# Generated or vendored — never reformat
+node_modules/
+.expo/
+dist/
+ios/
+android/
+web-build/
+coverage/
+package-lock.json
+assets/

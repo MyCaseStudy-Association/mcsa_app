@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -31,13 +31,11 @@ export function ChatViewerModal({ session, onClose }: ChatViewerModalProps) {
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  // Keep the last session rendered while the modal animates closed.
   const [displayedSession, setDisplayedSession] = useState(session);
-
-  useEffect(() => {
-    if (session) {
-      setDisplayedSession(session);
-    }
-  }, [session]);
+  if (session && session !== displayedSession) {
+    setDisplayedSession(session);
+  }
 
   const prompts = (displayedSession?.messages ?? [])
     .filter((message) => message.role === "user")

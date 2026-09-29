@@ -50,19 +50,24 @@ export function SmoothModal({
   // so opacity runs on a plain timing curve while the spring drives movement.
   const fade = useSharedValue(0);
 
+  // Mount as soon as the modal is asked to show (during render, not in an
+  // effect); the exit effect below unmounts after the animation finishes.
+  if (visible && !mounted) {
+    setMounted(true);
+  }
+
   useEffect(() => {
     if (visible) {
-      setMounted(true);
       return;
     }
 
     if (mounted) {
-      fade.value = withTiming(0, {
+      fade.set(withTiming(0, {
         duration: EXIT_DURATION,
         easing: Easing.in(Easing.cubic),
         reduceMotion: ReduceMotion.System,
-      });
-      progress.value = withTiming(
+      }));
+      progress.set(withTiming(
         0,
         {
           duration: EXIT_DURATION,
@@ -74,26 +79,26 @@ export function SmoothModal({
             runOnJS(setMounted)(false);
           }
         },
-      );
+      ));
     }
   }, [fade, mounted, progress, visible]);
 
   useEffect(() => {
     if (mounted && visible) {
-      progress.value = 0;
-      fade.value = 0;
-      fade.value = withTiming(1, {
+      progress.set(0);
+      fade.set(0);
+      fade.set(withTiming(1, {
         duration: 220,
         easing: Easing.out(Easing.cubic),
         reduceMotion: ReduceMotion.System,
-      });
-      progress.value = withSpring(1, {
+      }));
+      progress.set(withSpring(1, {
         damping: 22,
         stiffness: 260,
         mass: 0.72,
         overshootClamping: false,
         reduceMotion: ReduceMotion.System,
-      });
+      }));
     }
   }, [fade, mounted, progress, visible]);
 
@@ -198,7 +203,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   content: {
     zIndex: 1,

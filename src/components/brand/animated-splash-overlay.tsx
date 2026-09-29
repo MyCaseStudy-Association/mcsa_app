@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
     width: 128,
   },
   splashOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: AppColors.lightTealBackground,
     alignItems: 'center',
     justifyContent: 'center',
