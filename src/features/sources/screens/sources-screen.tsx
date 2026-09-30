@@ -13,10 +13,12 @@ import { useAuth } from "@/features/auth/providers/auth-provider";
 import { ChatViewerModal } from "@/features/sources/components/chat-viewer-modal";
 import { RefinedSessionModal } from "@/features/sources/components/refined-session-modal";
 import { SourceInfoModal } from "@/features/sources/components/source-info-modal";
+import { ValueEstimateCard } from "@/features/sources/components/value-estimate-card";
 import {
   CHAT_SOURCES,
   ChatSourceMeta,
 } from "@/features/sources/data/chat-sources";
+import { useConsentEstimate } from "@/features/sources/hooks/use-consent-estimate";
 import RefinedPromptsView from "@/features/sources/screens/refined-prompts-screen";
 import {
   type DeviceBrief,
@@ -48,6 +50,7 @@ import {
   RefinementApiError,
   submitForServerRefinement,
 } from "@/features/sources/services/refinement-api";
+import { estimateSentence } from "@/features/sources/services/valuation-estimate";
 import { useRefresh } from "@/hooks/use-refresh";
 import { AppPalette, Spacing } from "@/theme/theme";
 import { useColors } from "@/theme/theme-provider";
@@ -133,6 +136,14 @@ export default function SourcesScreen() {
   const [reviewSessionSummaries, setReviewSessionSummaries] = useState<
     RefinedSessionSummary[]
   >([]);
+
+  // Build #6: the consent-screen range. Consent is blocked until it is
+  // `ready` (fail closed, D5); a new selection re-estimates automatically.
+  const { estimate, retry: retryEstimate } = useConsentEstimate(
+    refinementResult,
+    matchesBySession,
+  );
+  const estimateReady = estimate.status === "ready";
 
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -342,11 +353,16 @@ export default function SourcesScreen() {
                 <Pressable
                   accessibilityLabel="I accept the Data Sale Consent"
                   accessibilityRole="checkbox"
-                  accessibilityState={{ checked: consentAccepted }}
+                  accessibilityState={{
+                    checked: consentAccepted,
+                    disabled: !estimateReady,
+                  }}
+                  disabled={!estimateReady}
                   hitSlop={6}
                   onPress={() => setConsentAccepted((accepted) => !accepted)}
                   style={({ pressed }) => [
                     styles.consentToggle,
+                    !estimateReady && styles.consentDisabled,
                     pressed && styles.pressed,
                   ]}
                 >
@@ -381,16 +397,21 @@ export default function SourcesScreen() {
                 <Pressable
                   accessibilityLabel="I accept the Data Sale Consent"
                   accessibilityRole="checkbox"
-                  accessibilityState={{ checked: consentAccepted }}
+                  accessibilityState={{
+                    checked: consentAccepted,
+                    disabled: !estimateReady,
+                  }}
+                  disabled={!estimateReady}
                   hitSlop={6}
                   onPress={() => setConsentAccepted((accepted) => !accepted)}
                   style={({ pressed }) => [
                     styles.consentToggle,
+                    !estimateReady && styles.consentDisabled,
                     pressed && styles.pressed,
                   ]}
                 >
                   <ThemedText type="small" style={styles.consentText}>
-                    to sale the data.
+                    to sell the data.
                   </ThemedText>
                 </Pressable>
               </View>
@@ -403,6 +424,7 @@ export default function SourcesScreen() {
                     disabled={
                       selectedCount === 0 ||
                       !refinementResult ||
+                      !estimateReady ||
                       !consentAccepted
                     }
                     loading={finishing}
@@ -418,6 +440,8 @@ export default function SourcesScreen() {
         >
           {error ? <AuthNotice message={error} /> : null}
           {briefsError ? <AuthNotice message={briefsError} /> : null}
+
+          <ValueEstimateCard estimate={estimate} onRetry={retryEstimate} />
 
           {refinementResult ? (
             <>
@@ -708,6 +732,24 @@ export default function SourcesScreen() {
           <View style={styles.consentTerms}>
             <View style={styles.consentTermRow}>
               <Ionicons
+                name="cash-outline"
+                size={18}
+                color={colors.primaryTeal}
+              />
+              <ThemedText
+                selectable
+                type="small"
+                style={styles.consentTermText}
+              >
+                {estimate.status === "ready"
+                  ? estimateSentence(estimate.lowCents, estimate.highCents)
+                  : estimate.status === "error"
+                    ? "The value estimate is unavailable. Close this and tap Retry."
+                    : "Estimating value…"}
+              </ThemedText>
+            </View>
+            <View style={styles.consentTermRow}>
+              <Ionicons
                 name="alert-circle-outline"
                 size={18}
                 color={colors.danger}
@@ -738,12 +780,15 @@ export default function SourcesScreen() {
           <Pressable
             accessibilityLabel="Accept Data Sale Consent"
             accessibilityRole="button"
+            accessibilityState={{ disabled: !estimateReady }}
+            disabled={!estimateReady}
             onPress={() => {
               setConsentAccepted(true);
               setConsentModalOpen(false);
             }}
             style={({ pressed }) => [
               styles.acceptConsentButton,
+              !estimateReady && styles.consentDisabled,
               pressed && styles.acceptConsentButtonPressed,
             ]}
           >
@@ -1493,6 +1538,9 @@ function createStyles(c: AppPalette) {
       borderWidth: 1,
       gap: Spacing.three,
       padding: Spacing.three,
+    },
+    consentDisabled: {
+      opacity: 0.45,
     },
     consentTermRow: {
       alignItems: "flex-start",

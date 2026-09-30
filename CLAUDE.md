@@ -26,6 +26,7 @@ node scripts/generate-brand-assets.js   # after editing assets/svgs/
 - Base URL comes from `EXPO_PUBLIC_AUTH_API_URL`; fallback ports are `6000` (native) and `6001` (browser-safe). These match the server defaults.
 - The server's Swagger UI at `<base>/api` is the source of truth for request/response shapes. Write services against it, not against guesses.
 - Auth: `POST /auth/register|login|refresh|logout`, `GET /auth/me` (Bearer). Tokens are stored only via `expo-secure-store` in `auth-api.ts`.
+- Briefs: `GET /briefs/push`, `POST /briefs/matches` (Bearer). Valuation: `POST /valuation/estimate` (Bearer; tier counts in, `{ lowCents, highCents }` out — money stays integer cents until display).
 - Refinement: `POST /refinement/process` (Bearer). Packaging: `GET /packaging/batch`, `GET /packaging/verify/:receiptRef` (public), `POST /packaging/revoke/:receiptRef` (Bearer).
 - Every server endpoint the app uses must have exactly one client function under `src/features/<feature>/services/*-api.ts`. No inline `fetch` in screens or components.
 - If a task needs both a server change and an app change, do the server first and keep each commit independently buildable.

@@ -62,11 +62,13 @@ export type ProcessRecordsResponse = {
  * the consent copy changes.
  */
 export const CONSENT_CONTEXT = {
-  disclosuresVersion: "2026-08-12.1",
+  // 2026-09-29.1: estimate range shown + "to sell the data" copy fix (Build #6).
+  disclosuresVersion: "2026-09-29.1",
   disclosuresShown: [
     "sold_is_final", // D-18: sold data cannot be recalled
     "unsold_deletable_anytime", // D-18: two-stage withdrawal disclosure
     "own_earnings_only", // D-33: platform split not shown
+    "value_estimate_shown", // Build #6: range shown; consent blocked without it (the amounts are never stored)
   ],
   // Ratified taxonomy ids (server: src/briefs/taxonomy.ts, v0.2). Still a
   // placeholder until the consent UI's category pre-auth toggles exist
