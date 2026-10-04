@@ -14,6 +14,7 @@ import {
   AUTH_API_BASE_URL,
   getStoredAuthSession,
 } from "@/features/auth/services/auth-api";
+import type { LanguageVerdict } from "@/features/sources/services/language-gate";
 import type {
   PromptRefinementResult,
   RefinedPrompt,
@@ -30,6 +31,19 @@ export type OutboundRecord = {
   exactHash: string;
   simHash: string;
   capturedAt?: number;
+};
+
+/**
+ * Builds #8.1/#8.2: labels computed once on-device from the original text.
+ * Labels and versions only — never text. The server packages them with the
+ * conversation and its QA gate consumes them as-is (no re-derivation).
+ */
+export type OutboundConversationMeta = {
+  conversationId: string;
+  domainTags: string[];
+  domainTaggerVersion: string;
+  language: LanguageVerdict;
+  languageGateVersion: string;
 };
 
 export type RecordOutcome = {
@@ -98,7 +112,9 @@ export function toOutboundRecords(
     flaggedCategoryIds: prompt.flaggedCategoryIds,
     exactHash: prompt.exactHash,
     simHash: prompt.simHash,
-    ...(prompt.capturedAt ? { capturedAt: toEpochSeconds(prompt.capturedAt) } : {}),
+    ...(prompt.capturedAt
+      ? { capturedAt: toEpochSeconds(prompt.capturedAt) }
+      : {}),
   }));
 }
 
@@ -109,6 +125,7 @@ function toEpochSeconds(value: number): number {
 
 export async function submitForServerRefinement(
   result: PromptRefinementResult,
+  conversationMeta: OutboundConversationMeta[],
 ): Promise<ProcessRecordsResponse> {
   const session = await getStoredAuthSession();
   if (!session?.accessToken) {
@@ -140,6 +157,11 @@ export async function submitForServerRefinement(
         sourceProvider: result.sourceProvider,
         consent: CONSENT_CONTEXT,
         records,
+        conversations: conversationMeta.filter((meta) =>
+          records.some(
+            (record) => record.conversationId === meta.conversationId,
+          ),
+        ),
       }),
     });
   } catch {

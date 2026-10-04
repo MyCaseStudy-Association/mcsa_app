@@ -27,7 +27,7 @@ node scripts/generate-brand-assets.js   # after editing assets/svgs/
 - The server's Swagger UI at `<base>/api` is the source of truth for request/response shapes. Write services against it, not against guesses.
 - Auth: `POST /auth/register|login|refresh|logout`, `GET /auth/me` (Bearer). Tokens are stored only via `expo-secure-store` in `auth-api.ts`.
 - Briefs: `GET /briefs/push`, `POST /briefs/matches` (Bearer). Valuation: `POST /valuation/estimate` (Bearer; tier counts in, `{ lowCents, highCents }` out — money stays integer cents until display).
-- Refinement: `POST /refinement/process` (Bearer). Packaging: `GET /packaging/batch`, `GET /packaging/verify/:receiptRef` (public), `POST /packaging/revoke/:receiptRef` (Bearer).
+- Refinement: `POST /refinement/process` (Bearer). Sends per-conversation `conversations: [{ conversationId, domainTags, language, ...versions }]` from the on-device tagger and language gate (labels only); server QA (Build #7) consumes them as-is. Packaging: `GET /packaging/batch`, `GET /packaging/verify/:receiptRef` (public), `POST /packaging/revoke/:receiptRef` (Bearer).
 - Every server endpoint the app uses must have exactly one client function under `src/features/<feature>/services/*-api.ts`. No inline `fetch` in screens or components.
 - If a task needs both a server change and an app change, do the server first and keep each commit independently buildable.
 
@@ -45,7 +45,7 @@ mcsa/
   package.json             Scripts above. Do not add scripts without updating this file.
   tsconfig.json            strict: true. Aliases: @/* -> src/*, @/assets/* -> assets/*
   eslint.config.js         expo flat config. Do not disable rules per-file without a comment.
-  jest.config.js           testMatch: **/__tests__/**/*.test.ts, node env, ts-jest
+  jest.config.js           testMatch: **/__tests__/**/*.test.ts, node env, ts-jest. ESM-only deps (franc-min chain) are transpiled via transformIgnorePatterns.
   .prettierrc              singleQuote, trailingComma all, endOfLine auto (same as mcsa_server + CRLF-safe). Do not change.
   .prettierignore          Generated/vendored paths Prettier must never touch.
   AGENTS.md                Expo doc pointer (imported above). Keep it one line.
@@ -164,3 +164,7 @@ find src/features -mindepth 2 -maxdepth 2 -type d | grep -vE '/(screens|componen
 **New shared primitive:** `src/components/ui/<name>.tsx`, named export, props interface exported, theme colors via `useColors()`.
 
 **New pure logic:** `src/features/<feature>/services/<name>.ts` plus `services/__tests__/<name>.test.ts`. Pure logic without tests will be rejected.
+
+## Shared-role authentication
+
+`auth-api.ts` sends `client: mobile` on login/refresh and validates `user.role === user` before saving/restoring a session. Buyer/admin sign-in is web-only. Public mobile registration cannot select roles. Brief matching/refinement endpoints now enforce contributor access server-side; their payloads are unchanged. The SDK is 57 as recorded in package.json (the historical SDK 54 note above is outdated).

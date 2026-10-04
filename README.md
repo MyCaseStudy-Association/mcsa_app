@@ -38,3 +38,7 @@ Formatting uses Prettier (`.prettierrc`, shared with the server): `npm run forma
 ## Environment
 
 Authentication reads its server URL from `EXPO_PUBLIC_AUTH_API_URL`. When the variable is omitted, the existing development fallback in the auth service is used.
+
+## Shared account roles
+
+The mobile app is for normal contributor (`user`) accounts only. Login and refresh send `client: mobile`, and session restore checks `/auth/me` before accepting the session. Buyer/admin accounts must use the webapp. Registration remains contributor-only. Chat import, local redaction, brief matching, consent, and submission continue through the common server without uploading raw chats to a new endpoint.

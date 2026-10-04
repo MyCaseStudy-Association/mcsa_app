@@ -38,14 +38,23 @@ import {
   ImportResult,
   importChatArchive,
 } from "@/features/sources/services/chat-import";
-import { tagConversation } from "@/features/sources/services/domain-tagger";
+import {
+  DOMAIN_TAGGER_VERSION,
+  tagConversation,
+} from "@/features/sources/services/domain-tagger";
+import {
+  detectConversationLanguage,
+  isSellableLanguage,
+  LANGUAGE_GATE_VERSION,
+  type LanguageVerdict,
+} from "@/features/sources/services/language-gate";
 import {
   type PromptRefinementResult,
-  type RefinedSessionSummary,
   refineSelectedSessions,
 } from "@/features/sources/services/prompt-refinement";
 import {
   CONSENT_CONTEXT,
+  type OutboundConversationMeta,
   type ProcessRecordsResponse,
   RefinementApiError,
   submitForServerRefinement,
@@ -55,14 +64,42 @@ import { useRefresh } from "@/hooks/use-refresh";
 import { AppPalette, Spacing } from "@/theme/theme";
 import { useColors } from "@/theme/theme-provider";
 
+/** Labels computed once per chat, on original text (Builds #8.1/#8.2). */
+type ConversationLabels = { domainTags: string[]; language: LanguageVerdict };
+
+const originalPromptsOf = (session: ChatSession): string[] =>
+  session.messages
+    .filter((message) => message.role === "user")
+    .map((message) => message.text);
+
+function labelConversation(session: ChatSession): ConversationLabels {
+  const prompts = originalPromptsOf(session);
+  return {
+    domainTags: tagConversation(prompts),
+    language: detectConversationLanguage(prompts),
+  };
+}
+
+/** Labels for Stage 6 → packaged record → QA. Never text. */
+function toConversationMeta(
+  labels: Map<string, ConversationLabels>,
+): OutboundConversationMeta[] {
+  return [...labels].map(([conversationId, label]) => ({
+    conversationId,
+    domainTags: label.domainTags,
+    domainTaggerVersion: DOMAIN_TAGGER_VERSION,
+    language: label.language,
+    languageGateVersion: LANGUAGE_GATE_VERSION,
+  }));
+}
+
 /** Everything the on-device matcher needs about one chat (Build #5). */
 function toMatchCandidate(
   session: ChatSession,
   refined: PromptRefinementResult,
+  labels: ConversationLabels,
 ): MatchCandidate {
-  const originalPrompts = session.messages
-    .filter((message) => message.role === "user")
-    .map((message) => message.text);
+  const originalPrompts = originalPromptsOf(session);
   const summary = refined.sessions.find((entry) => entry.id === session.id);
   const refinedTexts = refined.prompts
     .filter((prompt) => prompt.sessionId === session.id)
@@ -71,8 +108,8 @@ function toMatchCandidate(
     originalPrompts,
     keptPromptCount: summary?.refinedPromptCount ?? 0,
     redactionDensity: redactionDensity(refinedTexts),
-    domainTags: tagConversation(originalPrompts),
-    language: null, // Build #8.2 language gate supplies the verdict
+    domainTags: labels.domainTags,
+    language: labels.language,
   };
 }
 
@@ -122,6 +159,9 @@ export default function SourcesScreen() {
   const [matchesBySession, setMatchesBySession] = useState<
     Map<string, string[]>
   >(new Map());
+  const [labelsBySession, setLabelsBySession] = useState<
+    Map<string, ConversationLabels>
+  >(new Map());
   // Per-chat review (marks in place) once the chat has been refined.
   const [reviewingSessionId, setReviewingSessionId] = useState<string | null>(
     null,
@@ -133,9 +173,10 @@ export default function SourcesScreen() {
     useState<PromptRefinementResult | null>(null);
   const [serverReview, setServerReview] =
     useState<ProcessRecordsResponse | null>(null);
-  const [reviewSessionSummaries, setReviewSessionSummaries] = useState<
-    RefinedSessionSummary[]
-  >([]);
+  // Inspection includes every imported chat, independently of sale eligibility.
+  const [allRefinementResult, setAllRefinementResult] =
+    useState<PromptRefinementResult | null>(null);
+  const reviewSessionSummaries = allRefinementResult?.sessions ?? [];
 
   // Build #6: the consent-screen range. Consent is blocked until it is
   // `ready` (fail closed, D5); a new selection re-estimates automatically.
@@ -181,21 +222,32 @@ export default function SourcesScreen() {
       // redaction density per chat.
       const refinedAll = refineSelectedSessions(withPrompts, user?.name);
 
+      // Builds #8.1/#8.2: tag + language-gate every chat once.
+      const labels = new Map(
+        withPrompts.map((session) => [session.id, labelConversation(session)]),
+      );
+
       // Build #5: pull the live briefs (spec only) and match on-device.
       // Fail closed: if briefs cannot be fetched, nothing is selectable.
+      // The language gate runs BEFORE matching: a chat not positively
+      // English is never assigned to a brief (§8.2).
       const matches = new Map<string, string[]>();
       let pushed: DeviceBrief[] | null = null;
       setBriefsError("");
       try {
         pushed = (await fetchBriefPush()).briefs;
         for (const session of withPrompts) {
+          // labels holds every chat in withPrompts (built just above).
+          const label = labels.get(session.id) as ConversationLabels;
           matches.set(
             session.id,
-            matchedBriefRefs(
-              toMatchCandidate(session, refinedAll),
-              pushed,
-              CONSENT_CONTEXT.buyerCategories,
-            ),
+            isSellableLanguage(label.language)
+              ? matchedBriefRefs(
+                  toMatchCandidate(session, refinedAll, label),
+                  pushed,
+                  CONSENT_CONTEXT.buyerCategories,
+                )
+              : [],
           );
         }
       } catch (briefsFetchError) {
@@ -209,26 +261,26 @@ export default function SourcesScreen() {
       const matchedSessions = withPrompts.filter(
         (session) => (matches.get(session.id) ?? []).length > 0,
       );
-      const selectedIds = new Set(
-        matchedSessions.map((session) => session.id),
-      );
+      const selectedIds = new Set(matchedSessions.map((session) => session.id));
 
       setResult(imported);
       setBriefs(pushed);
       setMatchesBySession(matches);
+      setLabelsBySession(labels);
       setSelected(selectedIds);
       setConsentAccepted(false);
       setRefinementResult(refineSelectedSessions(matchedSessions, user?.name));
-      setReviewSessionSummaries(refinedAll.sessions);
+      setAllRefinementResult(refinedAll);
     } catch (importError) {
       setResult(null);
       setSelected(new Set());
       setConsentAccepted(false);
       setConsentModalOpen(false);
       setRefinementResult(null);
-      setReviewSessionSummaries([]);
+      setAllRefinementResult(null);
       setBriefs(null);
       setMatchesBySession(new Map());
+      setLabelsBySession(new Map());
       setError(
         importError instanceof ChatImportError
           ? importError.message
@@ -273,7 +325,10 @@ export default function SourcesScreen() {
     setFinishing(true);
     setError("");
     try {
-      const review = await submitForServerRefinement(refinementResult);
+      const review = await submitForServerRefinement(
+        refinementResult,
+        toConversationMeta(labelsBySession),
+      );
       setServerReview(review);
       // Build #5: report match metadata (ids, counts, fingerprints) for the
       // submitted conversations — never content. Non-fatal if it fails.
@@ -305,10 +360,11 @@ export default function SourcesScreen() {
     setConsentAccepted(false);
     setConsentModalOpen(false);
     setRefinementResult(null);
-    setReviewSessionSummaries([]);
+    setAllRefinementResult(null);
     setBriefs(null);
     setBriefsError("");
     setMatchesBySession(new Map());
+    setLabelsBySession(new Map());
     setServerReview(null);
     setResult(null);
     setSelected(new Set());
@@ -499,6 +555,10 @@ export default function SourcesScreen() {
                 const hasChat = session.promptCount > 0;
                 const isMatched =
                   (matchesBySession.get(session.id) ?? []).length > 0;
+                // §8.2: listed, never selectable, honestly labelled.
+                const englishOnly = !isSellableLanguage(
+                  labelsBySession.get(session.id)?.language ?? "und",
+                );
                 const canSelect = hasChat && isMatched;
                 const isSelected = canSelect && selected.has(session.id);
                 const summary = summaryBySessionId.get(session.id);
@@ -565,7 +625,25 @@ export default function SourcesScreen() {
                             {session.promptCount}{" "}
                             {session.promptCount === 1 ? "prompt" : "prompts"}
                           </ThemedText>
-                          {briefs !== null ? (
+                          {englishOnly ? (
+                            <View
+                              accessibilityLabel="English-only for now: this chat cannot be sold yet"
+                              accessibilityRole="text"
+                              style={styles.noMatchBadge}
+                            >
+                              <Ionicons
+                                name="language-outline"
+                                size={11}
+                                color={colors.glassMuted}
+                              />
+                              <ThemedText
+                                type="smallBold"
+                                style={styles.noMatchBadgeText}
+                              >
+                                English-only for now
+                              </ThemedText>
+                            </View>
+                          ) : briefs !== null ? (
                             isMatched ? (
                               <View
                                 accessibilityLabel="Matches a live buyer brief"
@@ -656,7 +734,7 @@ export default function SourcesScreen() {
                         }
                         accessibilityRole="button"
                         onPress={() =>
-                          summary && refinementResult
+                          summary && allRefinementResult
                             ? setReviewingSessionId(session.id)
                             : setViewing(session)
                         }
@@ -698,7 +776,7 @@ export default function SourcesScreen() {
 
           <ChatViewerModal session={viewing} onClose={() => setViewing(null)} />
           <RefinedSessionModal
-            result={refinementResult}
+            result={allRefinementResult}
             sessionId={reviewingSessionId}
             onClose={() => setReviewingSessionId(null)}
           />
@@ -990,11 +1068,7 @@ export default function SourcesScreen() {
                 {selectedSource.blurb}
               </ThemedText>
             </View>
-            <Ionicons
-              name="chevron-down"
-              size={17}
-              color={colors.glassMuted}
-            />
+            <Ionicons name="chevron-down" size={17} color={colors.glassMuted} />
           </Pressable>
         </View>
 
@@ -1017,16 +1091,10 @@ export default function SourcesScreen() {
               >
                 <View style={styles.processingHeader}>
                   <View style={styles.processingIndicator}>
-                    <ActivityIndicator
-                      color={colors.loader}
-                      size="small"
-                    />
+                    <ActivityIndicator color={colors.loader} size="small" />
                   </View>
                   <View style={styles.processingCopy}>
-                    <ThemedText
-                      type="smallBold"
-                      style={styles.processingTitle}
-                    >
+                    <ThemedText type="smallBold" style={styles.processingTitle}>
                       Processing your archive
                     </ThemedText>
                     <ThemedText type="small" style={styles.processingText}>
@@ -1114,8 +1182,8 @@ export default function SourcesScreen() {
             color={colors.primaryTeal}
           />
           <ThemedText selectable type="small" style={styles.privacyText}>
-            Your archive stays on this device. Personal identifiers are
-            filtered before processing.
+            Your archive stays on this device. Personal identifiers are filtered
+            before processing.
           </ThemedText>
         </View>
 

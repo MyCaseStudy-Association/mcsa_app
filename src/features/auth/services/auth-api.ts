@@ -2,6 +2,7 @@ import Constants from 'expo-constants';
 import { fetch } from 'expo/fetch';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import { isContributorRole } from './account-role';
 
 const ACCESS_TOKEN_KEY = 'portibilify.access-token';
 const REFRESH_TOKEN_KEY = 'portibilify.refresh-token';
@@ -12,6 +13,7 @@ const DEFAULT_WEB_API_PORT = '6001';
 type JsonRecord = Record<string, unknown>;
 
 export type AuthUser = {
+  role?: 'user' | 'buyer' | 'admin';
   id?: string | number;
   name?: string;
   email?: string;
@@ -67,7 +69,7 @@ export const AUTH_API_BASE_URL = getApiBaseUrl();
 export async function login(payload: LoginPayload) {
   const response = await apiRequest<unknown>('/auth/login', {
     method: 'POST',
-    body: payload,
+    body: { ...payload, client: 'mobile' },
   });
   const session = normalizeAuthSession(response);
   await saveAuthSession(session);
@@ -96,7 +98,9 @@ export async function getCurrentUser(accessToken?: string) {
     method: 'GET',
   });
 
-  return normalizeUser(response);
+  const user = normalizeUser(response);
+  assertContributor(user);
+  return user;
 }
 
 export async function refreshAuthSession(refreshToken?: string) {
@@ -108,7 +112,7 @@ export async function refreshAuthSession(refreshToken?: string) {
 
   const response = await apiRequest<unknown>('/auth/refresh', {
     method: 'POST',
-    body: { refreshToken: token },
+    body: { refreshToken: token, client: 'mobile' },
   });
   const session = normalizeAuthSession(response, token);
   await saveAuthSession(session);
@@ -148,7 +152,14 @@ export async function getStoredAuthSession(): Promise<AuthSession | null> {
   };
 }
 
+export function assertContributor(user: AuthUser | null | undefined) {
+  if (!isContributorRole(user?.role)) {
+    throw new AuthApiError('This mobile app is for contributor accounts. Buyers and admins must use the website.', 403, 'CONTRIBUTOR_ONLY');
+  }
+}
+
 export async function saveAuthSession(session: AuthSession) {
+  assertContributor(session.user);
   await Promise.all([
     writeStorage(ACCESS_TOKEN_KEY, session.accessToken),
     writeStorage(REFRESH_TOKEN_KEY, session.refreshToken),
